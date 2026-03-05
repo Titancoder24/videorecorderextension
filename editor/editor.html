@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clarity Editor</title>
+  <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <svg class="logo-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 2a10 10 0 0 1 0 20"/>
+      </svg>
+      <span class="topbar-title" id="session-title">Untitled Guide</span>
+    </div>
+    <div class="topbar-right">
+      <button class="topbar-btn" id="btn-export-html">Export HTML</button>
+      <button class="topbar-btn" id="btn-export-md">Export Markdown</button>
+      <button class="topbar-btn" id="btn-export-pdf">Print / PDF</button>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <main class="editor-layout">
+    <!-- Left Panel: Step List -->
+    <aside class="step-list-panel" id="step-list-panel">
+      <div class="panel-header">
+        <h3>Steps</h3>
+        <span class="step-count" id="step-count">0</span>
+      </div>
+      <div class="step-list" id="step-list"></div>
+    </aside>
+
+    <!-- Right Panel: Step Preview -->
+    <section class="preview-panel" id="preview-panel">
+      <div class="preview-empty" id="preview-empty">
+        <p>Select a step to preview and edit</p>
+      </div>
+      <div class="preview-content hidden" id="preview-content">
+        <div class="preview-screenshot-wrap">
+          <img class="preview-screenshot" id="preview-screenshot" alt="Step screenshot" />
+          <!-- Annotation canvas overlays the screenshot -->
+          <canvas class="preview-annotation-canvas" id="preview-annotation-canvas"></canvas>
+        </div>
+        <div class="preview-details">
+          <input class="preview-title-input" id="preview-title" placeholder="Step title..." />
+          <textarea class="preview-desc-input" id="preview-desc" placeholder="Add a description..." rows="3"></textarea>
+          <div class="preview-meta">
+            <span id="preview-url"></span>
+            <span id="preview-selector"></span>
+          </div>
+        </div>
+        <!-- Annotation Tools -->
+        <div class="annotation-toolbar" id="annotation-toolbar">
+          <button class="anno-btn" data-tool="arrow" title="Arrow">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+          <button class="anno-btn" data-tool="highlight" title="Highlight">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+          </button>
+          <button class="anno-btn" data-tool="text" title="Text">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+          </button>
+          <button class="anno-btn" data-tool="blur" title="Blur">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>
+          </button>
+          <button class="anno-btn" data-tool="number" title="Number Badge">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><text x="12" y="16" text-anchor="middle" font-size="12" fill="currentColor">#</text></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="../lib/export-engine.js"></script>
+  <script src="editor.js"></script>
+</body>
+</html>

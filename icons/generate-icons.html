@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Generate Clarity Icons</title>
+</head>
+<body>
+  <p>Open this file in a browser and right-click each canvas to save as PNG.</p>
+  <div id="icons"></div>
+  <script>
+    const sizes = [16, 48, 128];
+    for (const size of sizes) {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+
+      // Background circle
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Inner half-circle (Clarity logo mark)
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, size * 0.32, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Cut left half
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, size / 2, size);
+
+      // Restore left arc outline
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = Math.max(1, size * 0.06);
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, size * 0.32, Math.PI / 2, Math.PI * 1.5);
+      ctx.stroke();
+
+      const label = document.createElement('p');
+      label.textContent = `icon${size}.png`;
+      document.getElementById('icons').appendChild(label);
+      document.getElementById('icons').appendChild(canvas);
+    }
+  </script>
+</body>
+</html>

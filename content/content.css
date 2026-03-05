@@ -1,0 +1,254 @@
+/* ── Clarity Floating Toolbar ──────────────────────────────────────────── */
+
+#clarity-toolbar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #111;
+  border: 1px solid #333;
+  border-radius: 50px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  user-select: none;
+  cursor: grab;
+  transition: opacity 0.3s ease;
+  opacity: 1;
+}
+
+#clarity-toolbar.idle {
+  opacity: 0.6;
+}
+
+#clarity-toolbar:hover {
+  opacity: 1;
+}
+
+#clarity-toolbar.hidden {
+  display: none;
+}
+
+/* ── Toolbar Buttons ──────────────────────────────────────────────────── */
+
+.clarity-tb-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: transparent;
+  border: 1.5px solid #444;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.clarity-tb-btn:hover {
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.clarity-tb-btn:active {
+  transform: scale(0.92);
+}
+
+.clarity-tb-btn.active {
+  border-color: #fff;
+  background: #fff;
+  color: #000;
+}
+
+.clarity-tb-btn.stop {
+  border-color: #e00;
+  background: #e00;
+  color: #fff;
+}
+
+.clarity-tb-btn.stop:hover {
+  background: #f22;
+  border-color: #f22;
+}
+
+/* ── Timer ────────────────────────────────────────────────────────────── */
+
+.clarity-timer {
+  font-size: 12px;
+  font-weight: 600;
+  color: #aaa;
+  min-width: 52px;
+  text-align: center;
+  letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Toolbar Separator ────────────────────────────────────────────────── */
+
+.clarity-tb-sep {
+  width: 1px;
+  height: 20px;
+  background: #333;
+  margin: 0 4px;
+}
+
+/* ── Toolbar Label ────────────────────────────────────────────────────── */
+
+.clarity-tb-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0 4px;
+}
+
+/* ── Recording Indicator ──────────────────────────────────────────────── */
+
+.clarity-rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e00;
+  animation: clarity-pulse 1.2s ease-in-out infinite;
+  margin-right: 4px;
+}
+
+@keyframes clarity-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ── Cursor Effects Overlay ───────────────────────────────────────────── */
+
+#clarity-cursor-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 2147483646;
+}
+
+/* ── Annotation Layer ─────────────────────────────────────────────────── */
+
+#clarity-annotation-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 2147483645;
+}
+
+#clarity-annotation-layer.drawing {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+
+/* ── Step Capture Flash ───────────────────────────────────────────────── */
+
+@keyframes clarity-flash {
+  0% { opacity: 0.3; }
+  100% { opacity: 0; }
+}
+
+.clarity-flash-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #fff;
+  pointer-events: none;
+  z-index: 2147483644;
+  animation: clarity-flash 0.25s ease-out forwards;
+}
+
+/* ── Cursor Styles ────────────────────────────────────────────────────── */
+
+.clarity-cursor-ripple {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: clarity-ripple-out 0.6s ease-out forwards;
+}
+
+@keyframes clarity-ripple-out {
+  0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+}
+
+.clarity-cursor-glow {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,0,0,0.3) 0%, transparent 70%);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.clarity-cursor-spotlight {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+/* ── Dropdown Menu ────────────────────────────────────────────────────── */
+
+.clarity-dropdown {
+  position: absolute;
+  bottom: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 4px;
+  min-width: 140px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  display: none;
+}
+
+.clarity-dropdown.open {
+  display: block;
+}
+
+.clarity-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+
+.clarity-dropdown-item:hover {
+  background: #333;
+  color: #fff;
+}
+
+.clarity-dropdown-item.selected {
+  color: #fff;
+  font-weight: 600;
+}
