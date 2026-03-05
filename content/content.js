@@ -28,6 +28,7 @@
   let stepCount = 0;
   let stepBadges = []; // DOM elements for on-page badges
   let hoverHighlight = null; // element highlight on hover
+  let highlightColor = '#FF2D55'; // user-selected highlight color
 
   // Recording state
   let mediaRecorder = null;
@@ -81,6 +82,11 @@
         rebuildBadges(msg.steps);
         sendResponse({ ok: true });
         break;
+      case 'set-highlight-color':
+        highlightColor = msg.color || '#FF2D55';
+        document.documentElement.style.setProperty('--clarity-highlight-color', highlightColor);
+        sendResponse({ ok: true });
+        break;
     }
   });
 
@@ -111,6 +117,9 @@
     `;
 
     document.body.appendChild(toolbar);
+
+    // Set highlight color CSS variable
+    document.documentElement.style.setProperty('--clarity-highlight-color', highlightColor);
 
     // Overlays
     cursorOverlay = document.createElement('div');
@@ -528,12 +537,10 @@
         const hlW = elementRect.width * scaleX;
         const hlH = elementRect.height * scaleY;
 
-        ctx.strokeStyle = '#3B82F6';
+        ctx.strokeStyle = highlightColor;
         ctx.lineWidth = 3;
-        ctx.setLineDash([8, 4]);
         roundRect(ctx, hlX - 3, hlY - 3, hlW + 6, hlH + 6, 8);
         ctx.stroke();
-        ctx.setLineDash([]);
 
         // Full quality PNG — no compression artifacts
         resolve(canvas.toDataURL('image/png'));
@@ -558,18 +565,16 @@
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0);
 
-        // Draw blue dashed highlight box
+        // Draw solid highlight box in user-selected color
         const hlX = elementRect.left * scaleX;
         const hlY = elementRect.top * scaleY;
         const hlW = elementRect.width * scaleX;
         const hlH = elementRect.height * scaleY;
 
-        ctx.strokeStyle = '#3B82F6';
+        ctx.strokeStyle = highlightColor;
         ctx.lineWidth = 3;
-        ctx.setLineDash([8, 4]);
         roundRect(ctx, hlX - 3, hlY - 3, hlW + 6, hlH + 6, 8);
         ctx.stroke();
-        ctx.setLineDash([]);
 
         resolve(canvas.toDataURL('image/png'));
       };
@@ -604,7 +609,7 @@
   }
 
   function showCaptureConfetti(x, y) {
-    const colors = ['#000', '#333', '#666', '#999', '#3B82F6'];
+    const colors = ['#000', '#333', '#666', '#999', highlightColor];
     for (let i = 0; i < 12; i++) {
       const dot = document.createElement('div');
       dot.className = 'clarity-confetti-dot';

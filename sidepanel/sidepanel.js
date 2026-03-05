@@ -15,6 +15,42 @@
   let captureStartTime = 0;
   let timerInterval = null;
   let paused = false;
+  let highlightColor = '#FF2D55';
+
+  // 100+ color palette — organized by hue families
+  const COLOR_PALETTE = [
+    // Reds / Pinks
+    '#FF2D55', '#FF3B30', '#FF6B6B', '#E91E63', '#F50057',
+    '#FF1744', '#D50000', '#C62828', '#AD1457', '#880E4F',
+    // Oranges
+    '#FF9500', '#FF6D00', '#FF9100', '#FB8C00', '#EF6C00',
+    '#E65100', '#FF7043', '#FF5722', '#F4511E', '#BF360C',
+    // Yellows
+    '#FFCC00', '#FFD600', '#FFAB00', '#FFC400', '#FFB300',
+    '#FFA000', '#FF8F00', '#F9A825', '#F57F17', '#FFD740',
+    // Greens
+    '#34C759', '#00C853', '#00E676', '#69F0AE', '#4CAF50',
+    '#43A047', '#2E7D32', '#1B5E20', '#00BFA5', '#00897B',
+    // Teals / Cyans
+    '#5AC8FA', '#00BCD4', '#00ACC1', '#0097A7', '#00838F',
+    '#006064', '#26C6DA', '#4DD0E1', '#80DEEA', '#18FFFF',
+    // Blues
+    '#007AFF', '#2196F3', '#1976D2', '#1565C0', '#0D47A1',
+    '#2962FF', '#448AFF', '#42A5F5', '#64B5F6', '#82B1FF',
+    // Indigos
+    '#5856D6', '#3F51B5', '#3949AB', '#303F9F', '#283593',
+    '#1A237E', '#536DFE', '#3D5AFE', '#304FFE', '#8C9EFF',
+    // Purples
+    '#AF52DE', '#9C27B0', '#8E24AA', '#7B1FA2', '#6A1B9A',
+    '#4A148C', '#AA00FF', '#D500F9', '#E040FB', '#EA80FC',
+    // Browns
+    '#A2845E', '#795548', '#6D4C41', '#5D4037', '#4E342E',
+    '#3E2723', '#8D6E63', '#BCAAA4', '#A1887F', '#D7CCC8',
+    // Grays / Neutrals
+    '#000000', '#212121', '#424242', '#616161', '#757575',
+    '#9E9E9E', '#BDBDBD', '#E0E0E0', '#8E8E93', '#48484A',
+  ];
+
 
   // ── Init ────────────────────────────────────────────────────────────────
 
@@ -44,6 +80,9 @@
     document.getElementById('btn-stop-capture').addEventListener('click', finishCapture);
     document.getElementById('btn-finish-capture').addEventListener('click', finishCapture);
     document.getElementById('btn-undo-step').addEventListener('click', undoLastStep);
+
+    // Color picker
+    initColorPicker();
 
     // Title editing
     document.getElementById('capture-title').addEventListener('input', (e) => {
@@ -97,6 +136,8 @@
       captureSteps = [];
       switchView('capture');
       startTimer();
+      // Send initial highlight color to content script
+      sendHighlightColor(highlightColor);
     }
   }
 
@@ -289,6 +330,57 @@
 
       list.appendChild(el);
     }
+  }
+
+  // ── Color Picker ──────────────────────────────────────────────────────
+
+  function initColorPicker() {
+    const grid = document.getElementById('color-grid');
+    if (!grid) return;
+
+    grid.innerHTML = '';
+    for (const color of COLOR_PALETTE) {
+      const swatch = document.createElement('div');
+      swatch.className = 'sp-color-swatch' + (color === highlightColor ? ' active' : '');
+      swatch.style.background = color;
+      swatch.dataset.color = color;
+      swatch.title = color;
+      swatch.addEventListener('click', () => selectColor(color));
+      grid.appendChild(swatch);
+    }
+
+    const customInput = document.getElementById('custom-color');
+    if (customInput) {
+      customInput.value = highlightColor;
+      customInput.addEventListener('input', (e) => {
+        selectColor(e.target.value);
+      });
+    }
+  }
+
+  function selectColor(color) {
+    highlightColor = color;
+
+    // Update active swatch
+    document.querySelectorAll('.sp-color-swatch').forEach((s) => {
+      s.classList.toggle('active', s.dataset.color === color);
+    });
+
+    // Update custom input
+    const customInput = document.getElementById('custom-color');
+    if (customInput) customInput.value = color;
+
+    // Send to content script
+    sendHighlightColor(color);
+  }
+
+  async function sendHighlightColor(color) {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab?.id) {
+        await chrome.tabs.sendMessage(tab.id, { type: 'set-highlight-color', color });
+      }
+    } catch (_) {}
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────
