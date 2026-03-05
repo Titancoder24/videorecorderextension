@@ -114,7 +114,7 @@
           <span class="step-item-title">${escapeHtml(step.title || `Step ${i + 1}`)}</span>
           <span class="step-item-url">${escapeHtml(truncateUrl(step.url))}</span>
         </div>
-        ${step.screenshot ? `<img class="step-item-thumb" src="${step.screenshot}" />` : ''}
+        ${(step.croppedScreenshot || step.screenshot) ? `<img class="step-item-thumb" src="${step.croppedScreenshot || step.screenshot}" />` : ''}
       `;
       el.addEventListener('click', () => selectStep(i));
       list.appendChild(el);
@@ -131,8 +131,9 @@
     document.getElementById('preview-content').classList.remove('hidden');
 
     const img = document.getElementById('preview-screenshot');
-    if (step.screenshot) {
-      img.src = step.screenshot;
+    const screenshotSrc = step.croppedScreenshot || step.screenshot;
+    if (screenshotSrc) {
+      img.src = screenshotSrc;
       img.style.display = 'block';
     } else {
       img.style.display = 'none';

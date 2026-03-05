@@ -21,6 +21,32 @@ chrome.action.onClicked.addListener(async (tab) => {
 // Enable side panel for all tabs
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
 
+// ── Persist capture across page navigations ─────────────────────────────────
+
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && STATE.recording && STATE.tabId === tabId) {
+    try {
+      await chrome.scripting.insertCSS({ target: { tabId }, files: ['content/content.css'] });
+      await chrome.scripting.executeScript({ target: { tabId }, files: ['content/content.js'] });
+      const stepCount = await getStepCount(STATE.currentSessionId);
+      await chrome.tabs.sendMessage(tabId, {
+        type: 'show-toolbar',
+        mode: STATE.mode,
+        sessionId: STATE.currentSessionId,
+        resumeStepCount: stepCount,
+      });
+    } catch (_) {
+      // Page might not allow injection (chrome:// pages)
+    }
+  }
+});
+
+async function getStepCount(sessionId) {
+  const sessions = await loadSessions();
+  const session = sessions.find((s) => s.id === sessionId);
+  return session?.steps?.length || 0;
+}
+
 // ── Message Router ──────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {

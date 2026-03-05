@@ -53,7 +53,7 @@
       case 'show-toolbar':
         mode = msg.mode;
         sessionId = msg.sessionId;
-        stepCount = 0;
+        stepCount = msg.resumeStepCount || 0;
         stepBadges = [];
         showToolbar();
         if (mode === 'recording') {
@@ -244,31 +244,30 @@
       // Hide hover highlight during capture
       hideHoverHighlight();
 
-      // Show highlight box around clicked element
+      // Show highlight box around clicked element (blue dashed)
       const highlight = createElementHighlight(rect, stepCount + 1);
 
       // Place numbered badge on the element
       const badge = createStepBadge(rect, stepCount + 1);
       stepBadges.push({ badge, highlight });
 
-      // Flash effect
-      const flash = document.createElement('div');
-      flash.className = 'clarity-flash-overlay';
-      document.body.appendChild(flash);
-      setTimeout(() => flash.remove(), 300);
+      // Micro-animation: capture pulse + confetti burst
+      showCapturePulse(e.clientX, e.clientY);
+      showCaptureConfetti(e.clientX, e.clientY);
 
-      // Capture full screenshot
+      // Capture full screenshot at full quality
       const res = await chrome.runtime.sendMessage({ type: 'capture-screenshot' });
 
-      // Generate cropped screenshot focused on the element
+      // Generate cropped screenshot for side panel thumbnail
       let croppedScreenshot = null;
+      // Generate annotated full screenshot for editor (with blue highlight)
+      let annotatedScreenshot = null;
+
       if (res?.dataUrl) {
-        croppedScreenshot = await cropScreenshot(
-          res.dataUrl,
-          rect,
-          window.innerWidth,
-          window.innerHeight
-        );
+        [croppedScreenshot, annotatedScreenshot] = await Promise.all([
+          cropScreenshot(res.dataUrl, rect, window.innerWidth, window.innerHeight),
+          annotateFullScreenshot(res.dataUrl, rect, window.innerWidth, window.innerHeight),
+        ]);
       }
 
       // Smart title generation
@@ -291,7 +290,7 @@
         },
         elementText: target.textContent?.trim().slice(0, 100) || '',
         tagName: target.tagName.toLowerCase(),
-        screenshot: res?.dataUrl || null,
+        screenshot: annotatedScreenshot || res?.dataUrl || null,
         croppedScreenshot,
         timestamp: Date.now(),
         title,
@@ -304,6 +303,9 @@
         sessionId,
         step,
       });
+
+      // Show toast
+      showStepCountToast(stepCount);
     };
 
     document.addEventListener('mousemove', guideHoverHandler, { passive: true });
@@ -491,7 +493,7 @@
            el.closest('.clarity-badge-connector');
   }
 
-  // ── Cropped Screenshot ──────────────────────────────────────────────────
+  // ── Cropped Screenshot (high quality, for side panel thumbnail) ─────
 
   async function cropScreenshot(dataUrl, elementRect, viewW, viewH) {
     return new Promise((resolve) => {
@@ -500,45 +502,78 @@
         const scaleX = img.width / viewW;
         const scaleY = img.height / viewH;
 
-        // Add generous padding around the element (40% of element size, min 60px)
-        const padX = Math.max(60, elementRect.width * 0.4);
-        const padY = Math.max(60, elementRect.height * 0.4);
+        // Add generous padding around the element
+        const padX = Math.max(80, elementRect.width * 0.5);
+        const padY = Math.max(60, elementRect.height * 0.5);
 
         let sx = Math.max(0, (elementRect.left - padX) * scaleX);
         let sy = Math.max(0, (elementRect.top - padY) * scaleY);
         let sw = Math.min(img.width - sx, (elementRect.width + padX * 2) * scaleX);
         let sh = Math.min(img.height - sy, (elementRect.height + padY * 2) * scaleY);
 
-        // Ensure minimum size
         if (sw < 200) { sx = Math.max(0, sx - 100); sw = Math.min(img.width - sx, sw + 200); }
         if (sh < 150) { sy = Math.max(0, sy - 75); sh = Math.min(img.height - sy, sh + 150); }
 
         const canvas = document.createElement('canvas');
-        // Cap output to reasonable size for thumbnails
-        const maxW = 600;
-        const ratio = sw / sh;
-        canvas.width = Math.min(maxW, sw);
-        canvas.height = canvas.width / ratio;
+        // Use full native resolution — no downscaling
+        canvas.width = Math.round(sw);
+        canvas.height = Math.round(sh);
 
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
 
-        // Draw highlight box on cropped screenshot
-        const hlX = (elementRect.left - (sx / scaleX)) * (canvas.width / (sw / scaleX));
-        const hlY = (elementRect.top - (sy / scaleY)) * (canvas.height / (sh / scaleY));
-        const hlW = elementRect.width * (canvas.width / (sw / scaleX));
-        const hlH = elementRect.height * (canvas.height / (sh / scaleY));
+        // Draw blue dashed highlight box on the element
+        const hlX = (elementRect.left * scaleX) - sx;
+        const hlY = (elementRect.top * scaleY) - sy;
+        const hlW = elementRect.width * scaleX;
+        const hlH = elementRect.height * scaleY;
 
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2.5;
-        ctx.setLineDash([]);
-        // Rounded rect highlight
-        roundRect(ctx, hlX - 2, hlY - 2, hlW + 4, hlH + 4, 6);
+        ctx.strokeStyle = '#3B82F6';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([8, 4]);
+        roundRect(ctx, hlX - 3, hlY - 3, hlW + 6, hlH + 6, 8);
         ctx.stroke();
+        ctx.setLineDash([]);
 
-        resolve(canvas.toDataURL('image/png', 0.85));
+        // Full quality PNG — no compression artifacts
+        resolve(canvas.toDataURL('image/png'));
       };
       img.onerror = () => resolve(null);
+      img.src = dataUrl;
+    });
+  }
+
+  // ── Full Screenshot with highlight overlay (for editor) ───────────────
+
+  async function annotateFullScreenshot(dataUrl, elementRect, viewW, viewH) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const scaleX = img.width / viewW;
+        const scaleY = img.height / viewH;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+
+        // Draw blue dashed highlight box
+        const hlX = elementRect.left * scaleX;
+        const hlY = elementRect.top * scaleY;
+        const hlW = elementRect.width * scaleX;
+        const hlH = elementRect.height * scaleY;
+
+        ctx.strokeStyle = '#3B82F6';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([8, 4]);
+        roundRect(ctx, hlX - 3, hlY - 3, hlW + 6, hlH + 6, 8);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => resolve(dataUrl);
       img.src = dataUrl;
     });
   }
@@ -555,6 +590,61 @@
     ctx.lineTo(x, y + r);
     ctx.quadraticCurveTo(x, y, x + r, y);
     ctx.closePath();
+  }
+
+  // ── Micro-Animations ───────────────────────────────────────────────────
+
+  function showCapturePulse(x, y) {
+    const pulse = document.createElement('div');
+    pulse.className = 'clarity-capture-pulse';
+    pulse.style.left = x + 'px';
+    pulse.style.top = y + 'px';
+    document.body.appendChild(pulse);
+    setTimeout(() => pulse.remove(), 700);
+  }
+
+  function showCaptureConfetti(x, y) {
+    const colors = ['#000', '#333', '#666', '#999', '#3B82F6'];
+    for (let i = 0; i < 12; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'clarity-confetti-dot';
+      const angle = (Math.PI * 2 * i) / 12 + (Math.random() - 0.5) * 0.5;
+      const dist = 40 + Math.random() * 40;
+      const dx = Math.cos(angle) * dist;
+      const dy = Math.sin(angle) * dist;
+      const size = 3 + Math.random() * 4;
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      dot.style.cssText = `
+        position: fixed; left: ${x}px; top: ${y}px;
+        width: ${size}px; height: ${size}px; border-radius: 50%;
+        background: ${color}; pointer-events: none; z-index: 2147483647;
+        transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        opacity: 1;
+      `;
+      document.body.appendChild(dot);
+      requestAnimationFrame(() => {
+        dot.style.left = (x + dx) + 'px';
+        dot.style.top = (y + dy - 20) + 'px';
+        dot.style.opacity = '0';
+      });
+      setTimeout(() => dot.remove(), 600);
+    }
+  }
+
+  // Show step count toast in corner
+  function showStepCountToast(count) {
+    let toast = document.getElementById('clarity-step-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'clarity-step-toast';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = `Step ${count} captured`;
+    toast.className = 'clarity-step-toast show';
+    clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => {
+      toast.className = 'clarity-step-toast';
+    }, 1500);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
