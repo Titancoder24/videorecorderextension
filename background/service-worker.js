@@ -1,6 +1,6 @@
 /**
- * Clarity Background Service Worker
- * Handles messaging, capture coordination, and storage management.
+ * Clarity Background Service Worker v2
+ * Handles side panel, messaging, capture coordination, and storage.
  */
 
 const STATE = {
@@ -9,8 +9,17 @@ const STATE = {
   paused: false,
   tabId: null,
   streamId: null,
-  sessions: [],
+  currentSessionId: null,
 };
+
+// ── Open side panel on action click ───────────────────────────────────────
+
+chrome.action.onClicked.addListener(async (tab) => {
+  await chrome.sidePanel.open({ tabId: tab.id });
+});
+
+// Enable side panel for all tabs
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
 
 // ── Message Router ──────────────────────────────────────────────────────────
 
@@ -23,8 +32,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     'resume-capture': handleResumeCapture,
     'capture-screenshot': handleCaptureScreenshot,
     'add-step': handleAddStep,
+    'remove-last-step': handleRemoveLastStep,
+    'remove-step-at': handleRemoveStepAt,
+    'update-session-title': handleUpdateSessionTitle,
     'get-state': handleGetState,
     'get-sessions': handleGetSessions,
+    'get-session': handleGetSession,
     'delete-session': handleDeleteSession,
     'request-desktop-capture': handleDesktopCapture,
   };
@@ -63,12 +76,36 @@ async function handleStartGuide(msg, sender) {
     steps: [],
   };
 
+  STATE.currentSessionId = session.id;
   await saveSession(session);
 
   // Inject content script toolbar
-  await chrome.tabs.sendMessage(tabId, {
-    type: 'show-toolbar',
-    mode: 'guide',
+  try {
+    await chrome.tabs.sendMessage(tabId, {
+      type: 'show-toolbar',
+      mode: 'guide',
+      sessionId: session.id,
+    });
+  } catch (e) {
+    // Content script might not be injected yet
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['content/content.js'],
+    });
+    await chrome.scripting.insertCSS({
+      target: { tabId },
+      files: ['content/content.css'],
+    });
+    await chrome.tabs.sendMessage(tabId, {
+      type: 'show-toolbar',
+      mode: 'guide',
+      sessionId: session.id,
+    });
+  }
+
+  // Notify sidepanel
+  broadcastToExtension({
+    type: 'capture-started',
     sessionId: session.id,
   });
 
@@ -93,13 +130,30 @@ async function handleStartRecording(msg, sender) {
     annotations: [],
   };
 
+  STATE.currentSessionId = session.id;
   await saveSession(session);
 
-  await chrome.tabs.sendMessage(tabId, {
-    type: 'show-toolbar',
-    mode: 'recording',
-    sessionId: session.id,
-  });
+  try {
+    await chrome.tabs.sendMessage(tabId, {
+      type: 'show-toolbar',
+      mode: 'recording',
+      sessionId: session.id,
+    });
+  } catch (e) {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['content/content.js'],
+    });
+    await chrome.scripting.insertCSS({
+      target: { tabId },
+      files: ['content/content.css'],
+    });
+    await chrome.tabs.sendMessage(tabId, {
+      type: 'show-toolbar',
+      mode: 'recording',
+      sessionId: session.id,
+    });
+  }
 
   return { sessionId: session.id };
 }
@@ -133,19 +187,23 @@ async function handleStopCapture() {
   if (tabId) {
     try {
       await chrome.tabs.sendMessage(tabId, { type: 'hide-toolbar' });
-    } catch (_) {
-      // Tab may have closed
-    }
+    } catch (_) {}
   }
 
   STATE.tabId = null;
+
+  // Notify sidepanel
+  broadcastToExtension({ type: 'capture-stopped' });
+
   return { stopped: true, mode };
 }
 
 async function handlePauseCapture() {
   STATE.paused = true;
   if (STATE.tabId) {
-    await chrome.tabs.sendMessage(STATE.tabId, { type: 'set-paused', paused: true });
+    try {
+      await chrome.tabs.sendMessage(STATE.tabId, { type: 'set-paused', paused: true });
+    } catch (_) {}
   }
   return { paused: true };
 }
@@ -153,18 +211,24 @@ async function handlePauseCapture() {
 async function handleResumeCapture() {
   STATE.paused = false;
   if (STATE.tabId) {
-    await chrome.tabs.sendMessage(STATE.tabId, { type: 'set-paused', paused: false });
+    try {
+      await chrome.tabs.sendMessage(STATE.tabId, { type: 'set-paused', paused: false });
+    } catch (_) {}
   }
   return { paused: false };
 }
 
 async function handleCaptureScreenshot() {
   if (!STATE.tabId) return { error: 'No active tab' };
-  const dataUrl = await chrome.tabs.captureVisibleTab(null, {
-    format: 'png',
-    quality: 85,
-  });
-  return { dataUrl };
+  try {
+    const dataUrl = await chrome.tabs.captureVisibleTab(null, {
+      format: 'png',
+      quality: 90,
+    });
+    return { dataUrl };
+  } catch (e) {
+    return { error: e.message };
+  }
 }
 
 async function handleAddStep(msg) {
@@ -172,9 +236,69 @@ async function handleAddStep(msg) {
   const session = sessions.find((s) => s.id === msg.sessionId);
   if (!session) return { error: 'Session not found' };
 
+  const stepNumber = session.steps.length + 1;
+  msg.step.number = stepNumber;
   session.steps.push(msg.step);
   await chrome.storage.local.set({ sessions });
+
+  // Notify sidepanel about new step
+  broadcastToExtension({
+    type: 'step-added',
+    step: msg.step,
+    stepNumber,
+  });
+
+  return { stepCount: session.steps.length, stepNumber };
+}
+
+async function handleRemoveLastStep(msg) {
+  const sessions = await loadSessions();
+  const session = sessions.find((s) => s.id === msg.sessionId);
+  if (!session || !session.steps.length) return { error: 'No steps to remove' };
+
+  session.steps.pop();
+  await chrome.storage.local.set({ sessions });
+
+  if (STATE.tabId) {
+    try {
+      await chrome.tabs.sendMessage(STATE.tabId, {
+        type: 'remove-last-badge',
+        stepCount: session.steps.length,
+      });
+    } catch (_) {}
+  }
+
   return { stepCount: session.steps.length };
+}
+
+async function handleRemoveStepAt(msg) {
+  const sessions = await loadSessions();
+  const session = sessions.find((s) => s.id === msg.sessionId);
+  if (!session) return { error: 'Session not found' };
+
+  session.steps.splice(msg.index, 1);
+  await chrome.storage.local.set({ sessions });
+
+  if (STATE.tabId) {
+    try {
+      await chrome.tabs.sendMessage(STATE.tabId, {
+        type: 'rebuild-badges',
+        steps: session.steps,
+      });
+    } catch (_) {}
+  }
+
+  return { stepCount: session.steps.length };
+}
+
+async function handleUpdateSessionTitle(msg) {
+  const sessions = await loadSessions();
+  const session = sessions.find((s) => s.id === msg.sessionId);
+  if (!session) return { error: 'Session not found' };
+
+  session.title = msg.title;
+  await chrome.storage.local.set({ sessions });
+  return { ok: true };
 }
 
 async function handleGetSessions() {
@@ -188,6 +312,12 @@ async function handleGetSessions() {
       stepCount: s.steps?.length || 0,
     })),
   };
+}
+
+async function handleGetSession(msg) {
+  const sessions = await loadSessions();
+  const session = sessions.find((s) => s.id === msg.sessionId);
+  return { session: session || null };
 }
 
 async function handleDeleteSession(msg) {
@@ -208,4 +338,12 @@ async function saveSession(session) {
   const sessions = await loadSessions();
   sessions.unshift(session);
   await chrome.storage.local.set({ sessions });
+}
+
+// ── Broadcast to extension pages (sidepanel, popup) ─────────────────────────
+
+function broadcastToExtension(msg) {
+  chrome.runtime.sendMessage(msg).catch(() => {
+    // No listeners — side panel may not be open
+  });
 }

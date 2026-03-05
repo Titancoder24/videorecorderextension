@@ -1,13 +1,13 @@
 /**
- * Clarity Content Script
- * Injects the floating toolbar, handles interaction tracking,
- * screen capture coordination, and annotation tools.
+ * Clarity Content Script v2
+ * Smart element detection, auto-highlight with bounding boxes,
+ * numbered badges with dashed connector lines, auto-zoom B-roll,
+ * cropped element screenshots, and floating toolbar.
  */
 
 (() => {
   'use strict';
 
-  // Prevent double-injection
   if (window.__clarityInjected) return;
   window.__clarityInjected = true;
 
@@ -25,15 +25,17 @@
   let isAnnotating = false;
   let annotationStartPoint = null;
   let currentAnnotations = [];
+  let stepCount = 0;
+  let stepBadges = []; // DOM elements for on-page badges
+  let hoverHighlight = null; // element highlight on hover
 
   // Recording state
   let mediaRecorder = null;
   let recordedChunks = [];
   let mediaStream = null;
   let eventTimeline = [];
-  let cursorTrail = [];
 
-  // ── Icons (SVG strings) ─────────────────────────────────────────────────
+  // ── Icons ───────────────────────────────────────────────────────────────
 
   const ICONS = {
     stop: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
@@ -42,7 +44,6 @@
     zoom: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/><path d="M8 11h6M11 8v6"/></svg>',
     annotate: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
     cursor: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M4 2l14 10-6 1.5L9 20z"/></svg>',
-    arrow: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>',
   };
 
   // ── Message Listener ────────────────────────────────────────────────────
@@ -52,6 +53,8 @@
       case 'show-toolbar':
         mode = msg.mode;
         sessionId = msg.sessionId;
+        stepCount = 0;
+        stepBadges = [];
         showToolbar();
         if (mode === 'recording') {
           initRecording();
@@ -69,10 +72,19 @@
         updateToolbarState();
         sendResponse({ ok: true });
         break;
+      case 'remove-last-badge':
+        removeLastBadge();
+        stepCount = msg.stepCount;
+        sendResponse({ ok: true });
+        break;
+      case 'rebuild-badges':
+        rebuildBadges(msg.steps);
+        sendResponse({ ok: true });
+        break;
     }
   });
 
-  // ── Toolbar Creation ────────────────────────────────────────────────────
+  // ── Toolbar ─────────────────────────────────────────────────────────────
 
   function showToolbar() {
     if (toolbar) toolbar.remove();
@@ -80,10 +92,7 @@
     toolbar = document.createElement('div');
     toolbar.id = 'clarity-toolbar';
 
-    const recDot = mode === 'recording'
-      ? '<div class="clarity-rec-dot"></div>'
-      : '';
-
+    const recDot = mode === 'recording' ? '<div class="clarity-rec-dot"></div>' : '';
     const modeLabel = mode === 'guide' ? 'GUIDE' : 'REC';
 
     toolbar.innerHTML = `
@@ -103,17 +112,21 @@
 
     document.body.appendChild(toolbar);
 
-    // Cursor overlay
+    // Overlays
     cursorOverlay = document.createElement('div');
     cursorOverlay.id = 'clarity-cursor-overlay';
     document.body.appendChild(cursorOverlay);
 
-    // Annotation layer
     annotationLayer = document.createElement('canvas');
     annotationLayer.id = 'clarity-annotation-layer';
     annotationLayer.width = window.innerWidth;
     annotationLayer.height = window.innerHeight;
     document.body.appendChild(annotationLayer);
+
+    // Hover highlight element
+    hoverHighlight = document.createElement('div');
+    hoverHighlight.id = 'clarity-hover-highlight';
+    document.body.appendChild(hoverHighlight);
 
     // Bind events
     document.getElementById('clarity-btn-stop').addEventListener('click', handleStop);
@@ -125,14 +138,11 @@
       document.getElementById('clarity-btn-cursor').addEventListener('click', handleCursorMenu);
     }
 
-    // Drag support
     makeDraggable(toolbar);
 
-    // Start timer
     startTime = Date.now();
     timerInterval = setInterval(updateTimer, 1000);
 
-    // Idle fade
     let idleTimer;
     toolbar.addEventListener('mouseenter', () => {
       clearTimeout(idleTimer);
@@ -148,21 +158,23 @@
     toolbar?.remove();
     cursorOverlay?.remove();
     annotationLayer?.remove();
+    hoverHighlight?.remove();
+    clearAllBadges();
     toolbar = null;
     cursorOverlay = null;
     annotationLayer = null;
+    hoverHighlight = null;
     removeGuideListeners();
     removeRecordingListeners();
     mode = null;
     sessionId = null;
+    stepCount = 0;
   }
 
   // ── Toolbar Actions ─────────────────────────────────────────────────────
 
   async function handleStop() {
-    if (mode === 'recording') {
-      stopRecording();
-    }
+    if (mode === 'recording') stopRecording();
     await chrome.runtime.sendMessage({ type: 'stop-capture' });
     hideToolbar();
   }
@@ -185,8 +197,6 @@
     btn.title = paused ? 'Resume' : 'Pause';
   }
 
-  // ── Timer ───────────────────────────────────────────────────────────────
-
   function updateTimer() {
     if (paused) return;
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
@@ -196,18 +206,50 @@
     if (el) el.textContent = `${m}:${s}`;
   }
 
-  // ── Guide Capture ──────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  // GUIDE CAPTURE — Smart element detection, highlighting, badges
+  // ══════════════════════════════════════════════════════════════════════════
 
   let guideClickHandler = null;
+  let guideHoverHandler = null;
 
   function initGuideCapture() {
+    // Hover highlight — show bounding box around hovered element
+    guideHoverHandler = (e) => {
+      if (paused || isAnnotating) return;
+      if (isClarityElement(e.target)) {
+        hideHoverHighlight();
+        return;
+      }
+
+      const target = getInteractableElement(e.target);
+      const rect = target.getBoundingClientRect();
+
+      hoverHighlight.style.display = 'block';
+      hoverHighlight.style.left = (rect.left + window.scrollX - 3) + 'px';
+      hoverHighlight.style.top = (rect.top + window.scrollY - 3) + 'px';
+      hoverHighlight.style.width = (rect.width + 6) + 'px';
+      hoverHighlight.style.height = (rect.height + 6) + 'px';
+    };
+
+    // Click handler — capture step
     guideClickHandler = async (e) => {
       if (paused) return;
-      if (toolbar?.contains(e.target)) return;
-      if (annotationLayer?.contains(e.target)) return;
+      if (isClarityElement(e.target)) return;
 
-      const target = e.target;
+      const target = getInteractableElement(e.target);
+      const rect = target.getBoundingClientRect();
       const selector = getCssSelector(target);
+
+      // Hide hover highlight during capture
+      hideHoverHighlight();
+
+      // Show highlight box around clicked element
+      const highlight = createElementHighlight(rect, stepCount + 1);
+
+      // Place numbered badge on the element
+      const badge = createStepBadge(rect, stepCount + 1);
+      stepBadges.push({ badge, highlight });
 
       // Flash effect
       const flash = document.createElement('div');
@@ -215,21 +257,44 @@
       document.body.appendChild(flash);
       setTimeout(() => flash.remove(), 300);
 
-      // Capture screenshot
+      // Capture full screenshot
       const res = await chrome.runtime.sendMessage({ type: 'capture-screenshot' });
+
+      // Generate cropped screenshot focused on the element
+      let croppedScreenshot = null;
+      if (res?.dataUrl) {
+        croppedScreenshot = await cropScreenshot(
+          res.dataUrl,
+          rect,
+          window.innerWidth,
+          window.innerHeight
+        );
+      }
+
+      // Smart title generation
+      const title = generateSmartTitle(target);
+
+      stepCount++;
 
       const step = {
         id: crypto.randomUUID(),
-        number: 0, // set by background
+        number: stepCount,
         url: window.location.href,
         selector,
         cursorX: e.clientX,
         cursorY: e.clientY,
-        elementText: target.textContent?.slice(0, 100) || '',
+        elementRect: {
+          x: rect.left,
+          y: rect.top,
+          width: rect.width,
+          height: rect.height,
+        },
+        elementText: target.textContent?.trim().slice(0, 100) || '',
         tagName: target.tagName.toLowerCase(),
         screenshot: res?.dataUrl || null,
+        croppedScreenshot,
         timestamp: Date.now(),
-        title: `Click on ${target.tagName.toLowerCase()}`,
+        title,
         description: '',
         annotations: [],
       };
@@ -241,6 +306,7 @@
       });
     };
 
+    document.addEventListener('mousemove', guideHoverHandler, { passive: true });
     document.addEventListener('click', guideClickHandler, true);
   }
 
@@ -249,21 +315,259 @@
       document.removeEventListener('click', guideClickHandler, true);
       guideClickHandler = null;
     }
+    if (guideHoverHandler) {
+      document.removeEventListener('mousemove', guideHoverHandler);
+      guideHoverHandler = null;
+    }
   }
 
-  // ── Screen Recording ──────────────────────────────────────────────────
+  // ── Smart Element Detection ─────────────────────────────────────────────
+
+  function getInteractableElement(target) {
+    // Walk up to find the most meaningful interactive element
+    let el = target;
+    for (let i = 0; i < 5; i++) {
+      if (!el || el === document.body) break;
+
+      const tag = el.tagName.toLowerCase();
+      // If it's a known interactive element, use it
+      if (['button', 'a', 'input', 'select', 'textarea', 'label'].includes(tag)) return el;
+      // If it has a click role
+      if (el.getAttribute('role') === 'button' || el.getAttribute('role') === 'link') return el;
+      // If it has an onclick
+      if (el.onclick) return el;
+
+      // Check if parent is a better choice
+      const parent = el.parentElement;
+      if (parent && parent !== document.body) {
+        const parentTag = parent.tagName.toLowerCase();
+        if (['button', 'a', 'li', 'label'].includes(parentTag)) {
+          return parent;
+        }
+        // If parent has less than ~200px more area, prefer parent for cleaner highlight
+        const elRect = el.getBoundingClientRect();
+        const parentRect = parent.getBoundingClientRect();
+        const elArea = elRect.width * elRect.height;
+        const parentArea = parentRect.width * parentRect.height;
+        if (parentArea > 0 && parentArea < elArea * 2 && parentArea < 50000) {
+          el = parent;
+          continue;
+        }
+      }
+      break;
+    }
+    return el;
+  }
+
+  // ── Smart Title Generation ──────────────────────────────────────────────
+
+  function generateSmartTitle(el) {
+    const tag = el.tagName.toLowerCase();
+    const text = el.textContent?.trim().slice(0, 60) || '';
+    const ariaLabel = el.getAttribute('aria-label') || '';
+    const placeholder = el.getAttribute('placeholder') || '';
+    const title = el.getAttribute('title') || '';
+    const alt = el.getAttribute('alt') || '';
+
+    // Prefer human-readable labels
+    const label = ariaLabel || title || alt || placeholder || text;
+
+    if (tag === 'a') return `Click on "${label || 'link'}"`;
+    if (tag === 'button') return `Click on "${label || 'button'}"`;
+    if (tag === 'input') {
+      const type = el.getAttribute('type') || 'text';
+      if (type === 'submit') return `Click "${label || 'Submit'}"`;
+      if (type === 'checkbox') return `Toggle "${label || 'checkbox'}"`;
+      return `Type in "${label || 'field'}"`;
+    }
+    if (tag === 'select') return `Select from "${label || 'dropdown'}"`;
+    if (tag === 'textarea') return `Type in "${label || 'text area'}"`;
+    if (tag === 'img') return `Click on image${alt ? ` "${alt}"` : ''}`;
+
+    if (label && label.length <= 60) {
+      return `Click on "${label}"`;
+    }
+
+    return `Click on ${tag}`;
+  }
+
+  // ── Element Highlight Box ───────────────────────────────────────────────
+
+  function createElementHighlight(rect, number) {
+    const el = document.createElement('div');
+    el.className = 'clarity-element-highlight';
+    el.style.left = (rect.left + window.scrollX - 4) + 'px';
+    el.style.top = (rect.top + window.scrollY - 4) + 'px';
+    el.style.width = (rect.width + 8) + 'px';
+    el.style.height = (rect.height + 8) + 'px';
+    document.body.appendChild(el);
+    return el;
+  }
+
+  // ── Numbered Step Badge ─────────────────────────────────────────────────
+
+  function createStepBadge(rect, number) {
+    const badge = document.createElement('div');
+    badge.className = 'clarity-step-badge';
+    badge.textContent = number;
+
+    // Position badge at top-left of element, offset outward
+    const badgeX = rect.left + window.scrollX - 16;
+    const badgeY = rect.top + window.scrollY - 16;
+    badge.style.left = badgeX + 'px';
+    badge.style.top = badgeY + 'px';
+
+    document.body.appendChild(badge);
+
+    // Create dashed connector line from badge to element center
+    const line = document.createElement('div');
+    line.className = 'clarity-badge-connector';
+    const cx = rect.left + window.scrollX + rect.width / 2;
+    const cy = rect.top + window.scrollY + rect.height / 2;
+    const bx = badgeX + 14;
+    const by = badgeY + 14;
+    const length = Math.sqrt((cx - bx) ** 2 + (cy - by) ** 2);
+    const angle = Math.atan2(cy - by, cx - bx) * 180 / Math.PI;
+
+    line.style.left = bx + 'px';
+    line.style.top = by + 'px';
+    line.style.width = length + 'px';
+    line.style.transform = `rotate(${angle}deg)`;
+    document.body.appendChild(line);
+
+    badge._connector = line;
+    return badge;
+  }
+
+  function removeLastBadge() {
+    const last = stepBadges.pop();
+    if (last) {
+      last.badge._connector?.remove();
+      last.badge.remove();
+      last.highlight.remove();
+    }
+  }
+
+  function clearAllBadges() {
+    for (const b of stepBadges) {
+      b.badge._connector?.remove();
+      b.badge.remove();
+      b.highlight.remove();
+    }
+    stepBadges = [];
+  }
+
+  function rebuildBadges(steps) {
+    clearAllBadges();
+    stepCount = 0;
+    for (const step of steps) {
+      const el = step.selector ? document.querySelector(step.selector) : null;
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        stepCount++;
+        const highlight = createElementHighlight(rect, stepCount);
+        const badge = createStepBadge(rect, stepCount);
+        stepBadges.push({ badge, highlight });
+      } else {
+        stepCount++;
+      }
+    }
+  }
+
+  // ── Hover Highlight ─────────────────────────────────────────────────────
+
+  function hideHoverHighlight() {
+    if (hoverHighlight) hoverHighlight.style.display = 'none';
+  }
+
+  function isClarityElement(el) {
+    if (!el) return false;
+    return el.closest('#clarity-toolbar') ||
+           el.closest('#clarity-cursor-overlay') ||
+           el.closest('#clarity-annotation-layer') ||
+           el.closest('#clarity-hover-highlight') ||
+           el.closest('.clarity-step-badge') ||
+           el.closest('.clarity-element-highlight') ||
+           el.closest('.clarity-badge-connector');
+  }
+
+  // ── Cropped Screenshot ──────────────────────────────────────────────────
+
+  async function cropScreenshot(dataUrl, elementRect, viewW, viewH) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const scaleX = img.width / viewW;
+        const scaleY = img.height / viewH;
+
+        // Add generous padding around the element (40% of element size, min 60px)
+        const padX = Math.max(60, elementRect.width * 0.4);
+        const padY = Math.max(60, elementRect.height * 0.4);
+
+        let sx = Math.max(0, (elementRect.left - padX) * scaleX);
+        let sy = Math.max(0, (elementRect.top - padY) * scaleY);
+        let sw = Math.min(img.width - sx, (elementRect.width + padX * 2) * scaleX);
+        let sh = Math.min(img.height - sy, (elementRect.height + padY * 2) * scaleY);
+
+        // Ensure minimum size
+        if (sw < 200) { sx = Math.max(0, sx - 100); sw = Math.min(img.width - sx, sw + 200); }
+        if (sh < 150) { sy = Math.max(0, sy - 75); sh = Math.min(img.height - sy, sh + 150); }
+
+        const canvas = document.createElement('canvas');
+        // Cap output to reasonable size for thumbnails
+        const maxW = 600;
+        const ratio = sw / sh;
+        canvas.width = Math.min(maxW, sw);
+        canvas.height = canvas.width / ratio;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+
+        // Draw highlight box on cropped screenshot
+        const hlX = (elementRect.left - (sx / scaleX)) * (canvas.width / (sw / scaleX));
+        const hlY = (elementRect.top - (sy / scaleY)) * (canvas.height / (sh / scaleY));
+        const hlW = elementRect.width * (canvas.width / (sw / scaleX));
+        const hlH = elementRect.height * (canvas.height / (sh / scaleY));
+
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([]);
+        // Rounded rect highlight
+        roundRect(ctx, hlX - 2, hlY - 2, hlW + 4, hlH + 4, 6);
+        ctx.stroke();
+
+        resolve(canvas.toDataURL('image/png', 0.85));
+      };
+      img.onerror = () => resolve(null);
+      img.src = dataUrl;
+    });
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SCREEN RECORDING — Auto-zoom B-roll, cursor effects
+  // ══════════════════════════════════════════════════════════════════════════
 
   let mouseMoveHandler = null;
   let mouseClickHandler = null;
 
   async function initRecording() {
     try {
-      // Use tab capture for lightweight recording
       mediaStream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          cursor: 'always',
-          frameRate: { ideal: 30, max: 60 },
-        },
+        video: { cursor: 'always', frameRate: { ideal: 30, max: 60 } },
         audio: false,
       });
 
@@ -276,18 +580,13 @@
       });
 
       mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          recordedChunks.push(e.data);
-        }
+        if (e.data.size > 0) recordedChunks.push(e.data);
       };
 
-      mediaRecorder.onstop = () => {
-        exportRecording();
-      };
+      mediaRecorder.onstop = () => exportRecording();
+      mediaRecorder.start(100);
 
-      mediaRecorder.start(100); // Collect in 100ms chunks
-
-      // Track cursor for post-processing metadata
+      // Track cursor for post-processing + live effects
       mouseMoveHandler = (e) => {
         if (paused) return;
         eventTimeline.push({
@@ -296,25 +595,34 @@
           y: e.clientY,
           t: Date.now() - startTime,
         });
-
-        // Update cursor effect
         updateCursorEffect(e.clientX, e.clientY);
       };
 
       mouseClickHandler = (e) => {
         if (paused) return;
-        if (toolbar?.contains(e.target)) return;
+        if (isClarityElement(e.target)) return;
+
+        const target = getInteractableElement(e.target);
+        const rect = target.getBoundingClientRect();
 
         eventTimeline.push({
           type: 'click',
           x: e.clientX,
           y: e.clientY,
           t: Date.now() - startTime,
-          target: getCssSelector(e.target),
+          target: getCssSelector(target),
+          elementRect: {
+            x: rect.left,
+            y: rect.top,
+            width: rect.width,
+            height: rect.height,
+          },
         });
 
-        // Trigger cursor click animation
         triggerClickAnimation(e.clientX, e.clientY);
+
+        // Auto-zoom B-roll: zoom to clicked element
+        triggerAutoZoom(rect);
       };
 
       document.addEventListener('mousemove', mouseMoveHandler, { passive: true });
@@ -327,14 +635,84 @@
     }
   }
 
+  // ── Auto-Zoom B-roll ───────────────────────────────────────────────────
+
+  let autoZoomActive = false;
+
+  function triggerAutoZoom(elementRect) {
+    if (autoZoomActive) return;
+    autoZoomActive = true;
+
+    const cx = elementRect.x + elementRect.width / 2;
+    const cy = elementRect.y + elementRect.height / 2;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    // Calculate zoom level based on element size
+    const elementArea = elementRect.width * elementRect.height;
+    const viewArea = vw * vh;
+    const areaRatio = elementArea / viewArea;
+
+    // Small elements get more zoom, large elements less
+    let zoomLevel;
+    if (areaRatio < 0.005) zoomLevel = 2.5;
+    else if (areaRatio < 0.02) zoomLevel = 2.0;
+    else if (areaRatio < 0.08) zoomLevel = 1.6;
+    else zoomLevel = 1.3;
+
+    // Record zoom event for post-processing
+    eventTimeline.push({
+      type: 'zoom',
+      t: Date.now() - startTime,
+      centerX: cx,
+      centerY: cy,
+      level: zoomLevel,
+      duration: 600,
+      elementRect,
+    });
+
+    // Live visual zoom effect using CSS transform on the page
+    const translateX = -(cx - vw / 2) * (zoomLevel - 1);
+    const translateY = -(cy - vh / 2) * (zoomLevel - 1);
+
+    document.documentElement.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+    document.documentElement.style.transformOrigin = `${cx}px ${cy}px`;
+    document.documentElement.style.transform = `scale(${zoomLevel})`;
+
+    // Show zoom indicator ring around element
+    const ring = document.createElement('div');
+    ring.className = 'clarity-zoom-ring';
+    ring.style.left = (elementRect.x - 8) + 'px';
+    ring.style.top = (elementRect.y - 8) + 'px';
+    ring.style.width = (elementRect.width + 16) + 'px';
+    ring.style.height = (elementRect.height + 16) + 'px';
+    document.body.appendChild(ring);
+
+    // Zoom back out after a hold period
+    setTimeout(() => {
+      document.documentElement.style.transform = 'scale(1)';
+      ring.classList.add('fade-out');
+
+      setTimeout(() => {
+        document.documentElement.style.transition = '';
+        document.documentElement.style.transformOrigin = '';
+        document.documentElement.style.transform = '';
+        ring.remove();
+        autoZoomActive = false;
+      }, 500);
+    }, 1200);
+  }
+
   function stopRecording() {
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      mediaRecorder.stop();
-    }
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
     if (mediaStream) {
       mediaStream.getTracks().forEach((t) => t.stop());
       mediaStream = null;
     }
+    // Clean up any zoom state
+    document.documentElement.style.transition = '';
+    document.documentElement.style.transformOrigin = '';
+    document.documentElement.style.transform = '';
   }
 
   function removeRecordingListeners() {
@@ -349,12 +727,7 @@
   }
 
   function getSupportedMimeType() {
-    const types = [
-      'video/webm;codecs=vp9',
-      'video/webm;codecs=vp8',
-      'video/webm',
-      'video/mp4',
-    ];
+    const types = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4'];
     for (const t of types) {
       if (MediaRecorder.isTypeSupported(t)) return t;
     }
@@ -367,7 +740,6 @@
     const blob = new Blob(recordedChunks, { type: getSupportedMimeType() });
     const url = URL.createObjectURL(blob);
 
-    // Store timeline metadata alongside video
     const metadata = {
       events: eventTimeline,
       cursorStyle,
@@ -375,15 +747,10 @@
       duration: Date.now() - startTime,
     };
 
-    // Save metadata for potential post-processing
     const metaBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' });
 
-    // Trigger download
     downloadFile(url, `clarity-recording-${Date.now()}.webm`);
-
-    // Also save metadata
-    const metaUrl = URL.createObjectURL(metaBlob);
-    downloadFile(metaUrl, `clarity-metadata-${Date.now()}.json`);
+    downloadFile(URL.createObjectURL(metaBlob), `clarity-metadata-${Date.now()}.json`);
 
     recordedChunks = [];
     eventTimeline = [];
@@ -396,10 +763,7 @@
     a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
-    setTimeout(() => {
-      a.remove();
-      URL.revokeObjectURL(url);
-    }, 100);
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 100);
   }
 
   // ── Cursor Effects ────────────────────────────────────────────────────
@@ -409,41 +773,19 @@
 
     if (cursorStyle === 'glow') {
       let glow = cursorOverlay.querySelector('.clarity-cursor-glow');
-      if (!glow) {
-        glow = document.createElement('div');
-        glow.className = 'clarity-cursor-glow';
-        cursorOverlay.appendChild(glow);
-      }
+      if (!glow) { glow = document.createElement('div'); glow.className = 'clarity-cursor-glow'; cursorOverlay.appendChild(glow); }
       glow.style.left = x + 'px';
       glow.style.top = y + 'px';
     } else if (cursorStyle === 'spotlight') {
       let spot = cursorOverlay.querySelector('.clarity-cursor-spotlight');
-      if (!spot) {
-        spot = document.createElement('div');
-        spot.className = 'clarity-cursor-spotlight';
-        cursorOverlay.appendChild(spot);
-      }
+      if (!spot) { spot = document.createElement('div'); spot.className = 'clarity-cursor-spotlight'; cursorOverlay.appendChild(spot); }
       spot.style.left = x + 'px';
       spot.style.top = y + 'px';
     } else if (cursorStyle === 'trail') {
       const dot = document.createElement('div');
-      dot.style.cssText = `
-        position: absolute;
-        left: ${x}px;
-        top: ${y}px;
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: rgba(0,0,0,0.3);
-        pointer-events: none;
-        transform: translate(-50%, -50%);
-        transition: opacity 0.5s;
-      `;
+      dot.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:6px;height:6px;border-radius:50%;background:rgba(0,0,0,0.3);pointer-events:none;transform:translate(-50%,-50%);transition:opacity 0.5s;`;
       cursorOverlay.appendChild(dot);
-      setTimeout(() => {
-        dot.style.opacity = '0';
-        setTimeout(() => dot.remove(), 500);
-      }, 200);
+      setTimeout(() => { dot.style.opacity = '0'; setTimeout(() => dot.remove(), 500); }, 200);
     }
   }
 
@@ -459,46 +801,19 @@
       setTimeout(() => ripple.remove(), 600);
     } else if (cursorStyle === 'pulse') {
       const pulse = document.createElement('div');
-      pulse.style.cssText = `
-        position: absolute;
-        left: ${x}px;
-        top: ${y}px;
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: rgba(0,0,0,0.4);
-        pointer-events: none;
-        transform: translate(-50%, -50%) scale(1);
-        animation: clarity-pulse-click 0.4s ease-out forwards;
-      `;
+      pulse.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,0.4);pointer-events:none;transform:translate(-50%,-50%) scale(1);animation:clarity-pulse-click 0.4s ease-out forwards;`;
       cursorOverlay.appendChild(pulse);
       setTimeout(() => pulse.remove(), 400);
     } else if (cursorStyle === 'particle') {
       for (let i = 0; i < 8; i++) {
         const angle = (Math.PI * 2 * i) / 8;
-        const particle = document.createElement('div');
         const dx = Math.cos(angle) * 30;
         const dy = Math.sin(angle) * 30;
-        particle.style.cssText = `
-          position: absolute;
-          left: ${x}px;
-          top: ${y}px;
-          width: 4px;
-          height: 4px;
-          border-radius: 50%;
-          background: #000;
-          pointer-events: none;
-          transform: translate(-50%, -50%);
-          transition: all 0.4s ease-out;
-          opacity: 1;
-        `;
-        cursorOverlay.appendChild(particle);
-        requestAnimationFrame(() => {
-          particle.style.left = (x + dx) + 'px';
-          particle.style.top = (y + dy) + 'px';
-          particle.style.opacity = '0';
-        });
-        setTimeout(() => particle.remove(), 400);
+        const p = document.createElement('div');
+        p.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:4px;height:4px;border-radius:50%;background:#000;pointer-events:none;transform:translate(-50%,-50%);transition:all 0.4s ease-out;opacity:1;`;
+        cursorOverlay.appendChild(p);
+        requestAnimationFrame(() => { p.style.left = (x + dx) + 'px'; p.style.top = (y + dy) + 'px'; p.style.opacity = '0'; });
+        setTimeout(() => p.remove(), 400);
       }
     }
   }
@@ -507,10 +822,7 @@
 
   function handleCursorMenu() {
     let dropdown = toolbar.querySelector('.clarity-dropdown');
-    if (dropdown) {
-      dropdown.classList.toggle('open');
-      return;
-    }
+    if (dropdown) { dropdown.classList.toggle('open'); return; }
 
     const styles = ['ripple', 'glow', 'trail', 'spotlight', 'pulse', 'particle'];
     dropdown = document.createElement('div');
@@ -522,7 +834,6 @@
       btn.textContent = style.charAt(0).toUpperCase() + style.slice(1);
       btn.addEventListener('click', () => {
         cursorStyle = style;
-        // Clear existing cursor effects
         if (cursorOverlay) cursorOverlay.innerHTML = '';
         dropdown.classList.remove('open');
       });
@@ -530,46 +841,23 @@
     }
 
     toolbar.appendChild(dropdown);
-
-    // Close on outside click
     setTimeout(() => {
-      const close = (e) => {
-        if (!dropdown.contains(e.target)) {
-          dropdown.classList.remove('open');
-          document.removeEventListener('click', close);
-        }
-      };
+      const close = (e) => { if (!dropdown.contains(e.target)) { dropdown.classList.remove('open'); document.removeEventListener('click', close); } };
       document.addEventListener('click', close);
     }, 0);
   }
 
-  // ── Zoom Trigger ──────────────────────────────────────────────────────
+  // ── Zoom Trigger (Manual) ─────────────────────────────────────────────
 
   function handleZoomTrigger() {
-    const zoomEvent = {
-      type: 'zoom',
-      t: Date.now() - startTime,
-      centerX: window.innerWidth / 2,
-      centerY: window.innerHeight / 2,
-      level: 2,
-      duration: 400,
-    };
-    eventTimeline.push(zoomEvent);
-
-    // Visual feedback: brief zoom overlay
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-      position: fixed;
-      top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      border: 3px solid rgba(0,0,0,0.15);
-      border-radius: 12px;
-      pointer-events: none;
-      z-index: 2147483644;
-      animation: clarity-flash 0.3s ease-out forwards;
-    `;
-    document.body.appendChild(overlay);
-    setTimeout(() => overlay.remove(), 300);
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    triggerAutoZoom({
+      x: vw * 0.25,
+      y: vh * 0.25,
+      width: vw * 0.5,
+      height: vh * 0.5,
+    });
   }
 
   // ── Annotation Toggle ─────────────────────────────────────────────────
@@ -578,10 +866,7 @@
     isAnnotating = !isAnnotating;
     const btn = document.getElementById('clarity-btn-annotate');
     if (btn) btn.classList.toggle('active', isAnnotating);
-
-    if (annotationLayer) {
-      annotationLayer.classList.toggle('drawing', isAnnotating);
-    }
+    if (annotationLayer) annotationLayer.classList.toggle('drawing', isAnnotating);
 
     if (isAnnotating) {
       annotationLayer.addEventListener('mousedown', annotationStart);
@@ -594,83 +879,50 @@
     }
   }
 
-  function annotationStart(e) {
-    annotationStartPoint = { x: e.clientX, y: e.clientY };
-  }
-
+  function annotationStart(e) { annotationStartPoint = { x: e.clientX, y: e.clientY }; }
   function annotationMove(e) {
     if (!annotationStartPoint) return;
     const ctx = annotationLayer.getContext('2d');
     ctx.clearRect(0, 0, annotationLayer.width, annotationLayer.height);
-
-    // Redraw existing annotations
     redrawAnnotations(ctx);
-
-    // Draw current arrow
     drawArrow(ctx, annotationStartPoint.x, annotationStartPoint.y, e.clientX, e.clientY);
   }
-
   function annotationEnd(e) {
     if (!annotationStartPoint) return;
-    const annotation = {
-      type: 'arrow',
-      startX: annotationStartPoint.x,
-      startY: annotationStartPoint.y,
-      endX: e.clientX,
-      endY: e.clientY,
-      timestamp: Date.now() - startTime,
-    };
-    currentAnnotations.push(annotation);
-
-    if (mode === 'recording') {
-      eventTimeline.push({ ...annotation, type: 'annotation', t: annotation.timestamp });
-    }
-
+    const a = { type: 'arrow', startX: annotationStartPoint.x, startY: annotationStartPoint.y, endX: e.clientX, endY: e.clientY, timestamp: Date.now() - startTime };
+    currentAnnotations.push(a);
+    if (mode === 'recording') eventTimeline.push({ ...a, type: 'annotation', t: a.timestamp });
     annotationStartPoint = null;
   }
 
   function redrawAnnotations(ctx) {
     for (const a of currentAnnotations) {
-      if (a.type === 'arrow') {
-        drawArrow(ctx, a.startX, a.startY, a.endX, a.endY);
-      }
+      if (a.type === 'arrow') drawArrow(ctx, a.startX, a.startY, a.endX, a.endY);
     }
   }
 
   function drawArrow(ctx, x1, y1, x2, y2) {
     const headLen = 12;
     const angle = Math.atan2(y2 - y1, x2 - x1);
-
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
-
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.lineTo(x2, y2);
     ctx.stroke();
-
     ctx.beginPath();
     ctx.moveTo(x2, y2);
-    ctx.lineTo(
-      x2 - headLen * Math.cos(angle - Math.PI / 6),
-      y2 - headLen * Math.sin(angle - Math.PI / 6)
-    );
+    ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
     ctx.moveTo(x2, y2);
-    ctx.lineTo(
-      x2 - headLen * Math.cos(angle + Math.PI / 6),
-      y2 - headLen * Math.sin(angle + Math.PI / 6)
-    );
+    ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
     ctx.stroke();
   }
 
   // ── Drag Support ──────────────────────────────────────────────────────
 
   function makeDraggable(el) {
-    let isDragging = false;
-    let offsetX = 0;
-    let offsetY = 0;
-
+    let isDragging = false, offsetX = 0, offsetY = 0;
     el.addEventListener('mousedown', (e) => {
       if (e.target.closest('.clarity-tb-btn') || e.target.closest('.clarity-dropdown')) return;
       isDragging = true;
@@ -679,37 +931,44 @@
       el.style.cursor = 'grabbing';
       el.style.transition = 'none';
     });
-
     document.addEventListener('mousemove', (e) => {
       if (!isDragging) return;
-      const x = e.clientX - offsetX;
-      const y = e.clientY - offsetY;
-      el.style.left = x + 'px';
-      el.style.top = y + 'px';
+      el.style.left = (e.clientX - offsetX) + 'px';
+      el.style.top = (e.clientY - offsetY) + 'px';
       el.style.bottom = 'auto';
       el.style.transform = 'none';
     });
-
-    document.addEventListener('mouseup', () => {
-      isDragging = false;
-      if (el) el.style.cursor = 'grab';
-    });
+    document.addEventListener('mouseup', () => { isDragging = false; if (el) el.style.cursor = 'grab'; });
   }
 
   // ── CSS Selector Generator ────────────────────────────────────────────
 
   function getCssSelector(el) {
-    if (el.id) return `#${el.id}`;
+    if (el.id) return `#${CSS.escape(el.id)}`;
 
     const parts = [];
-    while (el && el !== document.body) {
-      let selector = el.tagName.toLowerCase();
-      if (el.className && typeof el.className === 'string') {
-        const cls = el.className.trim().split(/\s+/).slice(0, 2).join('.');
+    let current = el;
+    while (current && current !== document.body && parts.length < 5) {
+      let selector = current.tagName.toLowerCase();
+      if (current.className && typeof current.className === 'string') {
+        const cls = current.className.trim().split(/\s+/)
+          .filter(c => !c.startsWith('clarity-'))
+          .slice(0, 2)
+          .map(c => CSS.escape(c))
+          .join('.');
         if (cls) selector += '.' + cls;
       }
+      // Add nth-child for uniqueness
+      const parent = current.parentElement;
+      if (parent) {
+        const siblings = Array.from(parent.children).filter(s => s.tagName === current.tagName);
+        if (siblings.length > 1) {
+          const idx = siblings.indexOf(current) + 1;
+          selector += `:nth-child(${idx})`;
+        }
+      }
       parts.unshift(selector);
-      el = el.parentElement;
+      current = current.parentElement;
     }
     return parts.join(' > ');
   }

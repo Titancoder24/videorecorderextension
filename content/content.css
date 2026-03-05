@@ -1,4 +1,8 @@
-/* ── Clarity Floating Toolbar ──────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════
+   Clarity Content Styles v2
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Floating Toolbar ────────────────────────────────────────────────── */
 
 #clarity-toolbar {
   position: fixed;
@@ -21,19 +25,9 @@
   opacity: 1;
 }
 
-#clarity-toolbar.idle {
-  opacity: 0.6;
-}
-
-#clarity-toolbar:hover {
-  opacity: 1;
-}
-
-#clarity-toolbar.hidden {
-  display: none;
-}
-
-/* ── Toolbar Buttons ──────────────────────────────────────────────────── */
+#clarity-toolbar.idle { opacity: 0.6; }
+#clarity-toolbar:hover { opacity: 1; }
+#clarity-toolbar.hidden { display: none; }
 
 .clarity-tb-btn {
   display: flex;
@@ -50,33 +44,11 @@
   padding: 0;
 }
 
-.clarity-tb-btn:hover {
-  border-color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.clarity-tb-btn:active {
-  transform: scale(0.92);
-}
-
-.clarity-tb-btn.active {
-  border-color: #fff;
-  background: #fff;
-  color: #000;
-}
-
-.clarity-tb-btn.stop {
-  border-color: #e00;
-  background: #e00;
-  color: #fff;
-}
-
-.clarity-tb-btn.stop:hover {
-  background: #f22;
-  border-color: #f22;
-}
-
-/* ── Timer ────────────────────────────────────────────────────────────── */
+.clarity-tb-btn:hover { border-color: #fff; background: rgba(255,255,255,0.08); }
+.clarity-tb-btn:active { transform: scale(0.92); }
+.clarity-tb-btn.active { border-color: #fff; background: #fff; color: #000; }
+.clarity-tb-btn.stop { border-color: #e00; background: #e00; color: #fff; }
+.clarity-tb-btn.stop:hover { background: #f22; border-color: #f22; }
 
 .clarity-timer {
   font-size: 12px;
@@ -88,16 +60,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Toolbar Separator ────────────────────────────────────────────────── */
-
-.clarity-tb-sep {
-  width: 1px;
-  height: 20px;
-  background: #333;
-  margin: 0 4px;
-}
-
-/* ── Toolbar Label ────────────────────────────────────────────────────── */
+.clarity-tb-sep { width: 1px; height: 20px; background: #333; margin: 0 4px; }
 
 .clarity-tb-label {
   font-size: 10px;
@@ -107,8 +70,6 @@
   letter-spacing: 0.5px;
   padding: 0 4px;
 }
-
-/* ── Recording Indicator ──────────────────────────────────────────────── */
 
 .clarity-rec-dot {
   width: 8px;
@@ -124,26 +85,55 @@
   50% { opacity: 0.3; }
 }
 
-/* ── Cursor Effects Overlay ───────────────────────────────────────────── */
+/* ── Dropdown ────────────────────────────────────────────────────────── */
+
+.clarity-dropdown {
+  position: absolute;
+  bottom: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 4px;
+  min-width: 140px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  display: none;
+}
+
+.clarity-dropdown.open { display: block; }
+
+.clarity-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+
+.clarity-dropdown-item:hover { background: #333; color: #fff; }
+.clarity-dropdown-item.selected { color: #fff; font-weight: 600; }
+
+/* ── Overlays ────────────────────────────────────────────────────────── */
 
 #clarity-cursor-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
   pointer-events: none;
   z-index: 2147483646;
 }
 
-/* ── Annotation Layer ─────────────────────────────────────────────────── */
-
 #clarity-annotation-layer {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
   pointer-events: none;
   z-index: 2147483645;
 }
@@ -153,7 +143,7 @@
   cursor: crosshair;
 }
 
-/* ── Step Capture Flash ───────────────────────────────────────────────── */
+/* ── Step Capture Flash ──────────────────────────────────────────────── */
 
 @keyframes clarity-flash {
   0% { opacity: 0.3; }
@@ -162,17 +152,122 @@
 
 .clarity-flash-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
   background: #fff;
   pointer-events: none;
   z-index: 2147483644;
   animation: clarity-flash 0.25s ease-out forwards;
 }
 
-/* ── Cursor Styles ────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════════════
+   HOVER HIGHLIGHT — Shows bounding box on hover during guide capture
+   ══════════════════════════════════════════════════════════════════════════ */
+
+#clarity-hover-highlight {
+  position: absolute;
+  display: none;
+  pointer-events: none;
+  z-index: 2147483640;
+  border: 2px dashed rgba(0, 0, 0, 0.25);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.02);
+  transition: all 0.1s ease;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ELEMENT HIGHLIGHT — Persistent box around captured elements
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.clarity-element-highlight {
+  position: absolute;
+  pointer-events: none;
+  z-index: 2147483639;
+  border: 2.5px solid #000;
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8), 0 2px 8px rgba(0, 0, 0, 0.12);
+  animation: clarity-highlight-in 0.3s ease-out;
+}
+
+@keyframes clarity-highlight-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   STEP BADGES — Numbered circles on the page
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.clarity-step-badge {
+  position: absolute;
+  z-index: 2147483641;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #000;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25), 0 0 0 2px #fff;
+  animation: clarity-badge-in 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes clarity-badge-in {
+  from { opacity: 0; transform: scale(0) rotate(-20deg); }
+  to { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+/* ── Badge Connector Line (dashed) ───────────────────────────────────── */
+
+.clarity-badge-connector {
+  position: absolute;
+  z-index: 2147483638;
+  height: 0;
+  border-top: 1.5px dashed rgba(0, 0, 0, 0.3);
+  transform-origin: left center;
+  pointer-events: none;
+  animation: clarity-connector-in 0.3s ease-out;
+}
+
+@keyframes clarity-connector-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   AUTO-ZOOM B-ROLL — Ring effect during zoom
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.clarity-zoom-ring {
+  position: fixed;
+  z-index: 2147483643;
+  border: 3px solid rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  pointer-events: none;
+  animation: clarity-zoom-ring-in 0.5s ease-out;
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.06);
+}
+
+.clarity-zoom-ring.fade-out {
+  animation: clarity-zoom-ring-out 0.5s ease-in forwards;
+}
+
+@keyframes clarity-zoom-ring-in {
+  from { opacity: 0; transform: scale(1.1); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes clarity-zoom-ring-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* ── Cursor Styles ───────────────────────────────────────────────────── */
 
 .clarity-cursor-ripple {
   position: absolute;
@@ -209,46 +304,7 @@
   transform: translate(-50%, -50%);
 }
 
-/* ── Dropdown Menu ────────────────────────────────────────────────────── */
-
-.clarity-dropdown {
-  position: absolute;
-  bottom: 48px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 8px;
-  padding: 4px;
-  min-width: 140px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-  display: none;
-}
-
-.clarity-dropdown.open {
-  display: block;
-}
-
-.clarity-dropdown-item {
-  display: block;
-  width: 100%;
-  padding: 8px 12px;
-  background: transparent;
-  border: none;
-  color: #ccc;
-  font-size: 12px;
-  text-align: left;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background 0.1s;
-}
-
-.clarity-dropdown-item:hover {
-  background: #333;
-  color: #fff;
-}
-
-.clarity-dropdown-item.selected {
-  color: #fff;
-  font-weight: 600;
+@keyframes clarity-pulse-click {
+  from { transform: translate(-50%, -50%) scale(1); opacity: 0.4; }
+  to { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
 }
