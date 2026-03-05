@@ -265,7 +265,13 @@ async function handleAddStep(msg) {
   const stepNumber = session.steps.length + 1;
   msg.step.number = stepNumber;
   session.steps.push(msg.step);
-  await chrome.storage.local.set({ sessions });
+
+  try {
+    await chrome.storage.local.set({ sessions });
+  } catch (e) {
+    console.error('[Clarity] Storage save failed:', e);
+    return { error: 'Storage save failed: ' + e.message };
+  }
 
   // Notify sidepanel about new step
   broadcastToExtension({

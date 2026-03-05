@@ -102,10 +102,13 @@
         addStepToUI(msg.step, msg.stepNumber);
         sendResponse({ ok: true });
       } else if (msg.type === 'capture-started') {
-        captureSessionId = msg.sessionId;
-        captureSteps = [];
-        switchView('capture');
-        startTimer();
+        // Only handle if we aren't already in capture view (avoid duplicate from response)
+        if (currentView !== 'capture') {
+          captureSessionId = msg.sessionId;
+          captureSteps = [];
+          switchView('capture');
+          startTimer();
+        }
         sendResponse({ ok: true });
       } else if (msg.type === 'capture-stopped') {
         switchView('home');

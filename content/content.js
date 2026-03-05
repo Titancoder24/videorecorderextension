@@ -246,75 +246,80 @@
       if (paused) return;
       if (isClarityElement(e.target)) return;
 
-      const target = getInteractableElement(e.target);
-      const rect = target.getBoundingClientRect();
-      const selector = getCssSelector(target);
+      try {
+        const target = getInteractableElement(e.target);
+        const rect = target.getBoundingClientRect();
+        const selector = getCssSelector(target);
 
-      // Hide hover highlight during capture
-      hideHoverHighlight();
+        // Hide hover highlight during capture
+        hideHoverHighlight();
 
-      // Show highlight box around clicked element (blue dashed)
-      const highlight = createElementHighlight(rect, stepCount + 1);
+        // Show highlight box around clicked element
+        const highlight = createElementHighlight(rect, stepCount + 1);
 
-      // Place numbered badge on the element
-      const badge = createStepBadge(rect, stepCount + 1);
-      stepBadges.push({ badge, highlight });
+        // Place numbered badge on the element
+        const badge = createStepBadge(rect, stepCount + 1);
+        stepBadges.push({ badge, highlight });
 
-      // Micro-animation: capture pulse + confetti burst
-      showCapturePulse(e.clientX, e.clientY);
-      showCaptureConfetti(e.clientX, e.clientY);
+        // Micro-animation: capture pulse + confetti burst
+        showCapturePulse(e.clientX, e.clientY);
+        showCaptureConfetti(e.clientX, e.clientY);
 
-      // Capture full screenshot at full quality
-      const res = await chrome.runtime.sendMessage({ type: 'capture-screenshot' });
+        // Capture screenshot
+        let croppedScreenshot = null;
+        try {
+          const res = await chrome.runtime.sendMessage({ type: 'capture-screenshot' });
+          if (res?.dataUrl) {
+            croppedScreenshot = await cropScreenshot(res.dataUrl, rect, window.innerWidth, window.innerHeight);
+          }
+        } catch (err) {
+          console.warn('[Clarity] Screenshot capture failed:', err);
+        }
 
-      // Generate cropped screenshot for side panel thumbnail
-      let croppedScreenshot = null;
-      // Generate annotated full screenshot for editor (with blue highlight)
-      let annotatedScreenshot = null;
+        // Smart title generation
+        const title = generateSmartTitle(target);
 
-      if (res?.dataUrl) {
-        [croppedScreenshot, annotatedScreenshot] = await Promise.all([
-          cropScreenshot(res.dataUrl, rect, window.innerWidth, window.innerHeight),
-          annotateFullScreenshot(res.dataUrl, rect, window.innerWidth, window.innerHeight),
-        ]);
+        stepCount++;
+
+        const step = {
+          id: crypto.randomUUID(),
+          number: stepCount,
+          url: window.location.href,
+          selector,
+          cursorX: e.clientX,
+          cursorY: e.clientY,
+          elementRect: {
+            x: rect.left,
+            y: rect.top,
+            width: rect.width,
+            height: rect.height,
+          },
+          elementText: target.textContent?.trim().slice(0, 100) || '',
+          tagName: target.tagName.toLowerCase(),
+          screenshot: croppedScreenshot,
+          croppedScreenshot,
+          highlightColor,
+          timestamp: Date.now(),
+          title,
+          description: '',
+          annotations: [],
+        };
+
+        const addRes = await chrome.runtime.sendMessage({
+          type: 'add-step',
+          sessionId,
+          step,
+        });
+
+        if (addRes?.error) {
+          console.error('[Clarity] Failed to save step:', addRes.error);
+        }
+
+        // Show toast
+        showStepCountToast(stepCount);
+      } catch (err) {
+        console.error('[Clarity] Step capture error:', err);
       }
-
-      // Smart title generation
-      const title = generateSmartTitle(target);
-
-      stepCount++;
-
-      const step = {
-        id: crypto.randomUUID(),
-        number: stepCount,
-        url: window.location.href,
-        selector,
-        cursorX: e.clientX,
-        cursorY: e.clientY,
-        elementRect: {
-          x: rect.left,
-          y: rect.top,
-          width: rect.width,
-          height: rect.height,
-        },
-        elementText: target.textContent?.trim().slice(0, 100) || '',
-        tagName: target.tagName.toLowerCase(),
-        screenshot: annotatedScreenshot || res?.dataUrl || null,
-        croppedScreenshot,
-        timestamp: Date.now(),
-        title,
-        description: '',
-        annotations: [],
-      };
-
-      await chrome.runtime.sendMessage({
-        type: 'add-step',
-        sessionId,
-        step,
-      });
-
-      // Show toast
-      showStepCountToast(stepCount);
     };
 
     document.addEventListener('mousemove', guideHoverHandler, { passive: true });
@@ -524,61 +529,30 @@
         if (sh < 150) { sy = Math.max(0, sy - 75); sh = Math.min(img.height - sy, sh + 150); }
 
         const canvas = document.createElement('canvas');
-        // Use full native resolution — no downscaling
-        canvas.width = Math.round(sw);
-        canvas.height = Math.round(sh);
+        // Cap at 1200px wide for crisp but storage-efficient screenshots
+        const maxW = 1200;
+        const ratio = Math.min(1, maxW / sw);
+        canvas.width = Math.round(sw * ratio);
+        canvas.height = Math.round(sh * ratio);
 
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
 
-        // Draw blue dashed highlight box on the element
-        const hlX = (elementRect.left * scaleX) - sx;
-        const hlY = (elementRect.top * scaleY) - sy;
-        const hlW = elementRect.width * scaleX;
-        const hlH = elementRect.height * scaleY;
+        // Draw highlight box on the element (scaled to canvas)
+        const hlX = ((elementRect.left * scaleX) - sx) * ratio;
+        const hlY = ((elementRect.top * scaleY) - sy) * ratio;
+        const hlW = elementRect.width * scaleX * ratio;
+        const hlH = elementRect.height * scaleY * ratio;
 
         ctx.strokeStyle = highlightColor;
         ctx.lineWidth = 3;
         roundRect(ctx, hlX - 3, hlY - 3, hlW + 6, hlH + 6, 8);
         ctx.stroke();
 
-        // Full quality PNG — no compression artifacts
-        resolve(canvas.toDataURL('image/png'));
+        // High quality JPEG — crisp and storage-efficient
+        resolve(canvas.toDataURL('image/jpeg', 0.92));
       };
       img.onerror = () => resolve(null);
-      img.src = dataUrl;
-    });
-  }
-
-  // ── Full Screenshot with highlight overlay (for editor) ───────────────
-
-  async function annotateFullScreenshot(dataUrl, elementRect, viewW, viewH) {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const scaleX = img.width / viewW;
-        const scaleY = img.height / viewH;
-
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-
-        // Draw solid highlight box in user-selected color
-        const hlX = elementRect.left * scaleX;
-        const hlY = elementRect.top * scaleY;
-        const hlW = elementRect.width * scaleX;
-        const hlH = elementRect.height * scaleY;
-
-        ctx.strokeStyle = highlightColor;
-        ctx.lineWidth = 3;
-        roundRect(ctx, hlX - 3, hlY - 3, hlW + 6, hlH + 6, 8);
-        ctx.stroke();
-
-        resolve(canvas.toDataURL('image/png'));
-      };
-      img.onerror = () => resolve(dataUrl);
       img.src = dataUrl;
     });
   }
