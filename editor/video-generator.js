@@ -313,11 +313,11 @@ async function generateVideoFromSteps(session, options = {}) {
   canvas.height = height;
   const ctx = canvas.getContext('2d');
 
-  // Load all step screenshots as images
+  // Load all step screenshots as images — prefer FULL page screenshot for video
   const images = await Promise.all(
     steps.map((step) => {
       return new Promise((resolve) => {
-        const src = step.croppedScreenshot || step.screenshot;
+        const src = step.screenshot || step.croppedScreenshot;
         if (!src) { resolve(null); return; }
         const img = new Image();
         img.onload = () => resolve(img);

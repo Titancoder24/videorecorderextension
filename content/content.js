@@ -302,11 +302,11 @@
       hoverHighlight.style.height = (rect.height + 6) + 'px';
     };
 
-    // Click handler — capture step
+    // Click handler — capture step (AUTO-SAVE: click = instant save, no comment prompt)
     guideClickHandler = async (e) => {
       if (paused) return;
       if (isClarityElement(e.target)) return;
-      if (isCapturingStep) return; // prevent double-capture while comment input is showing
+      if (isCapturingStep) return;
 
       isCapturingStep = true;
       try {
@@ -317,7 +317,7 @@
         // Hide hover highlight during capture
         hideHoverHighlight();
 
-        // Show highlight box around clicked element
+        // Show highlight box around clicked element (just the box, on this element only)
         const highlight = createElementHighlight(rect, stepCount + 1);
 
         // Place numbered badge on the element
@@ -328,13 +328,14 @@
         showCapturePulse(e.clientX, e.clientY);
         showCaptureConfetti(e.clientX, e.clientY);
 
-        // Capture screenshot BEFORE showing comment input (clean screenshot)
+        // Capture FULL page screenshot + cropped element screenshot
+        let fullScreenshot = null;
         let croppedScreenshot = null;
         try {
           const res = await chrome.runtime.sendMessage({ type: 'capture-screenshot' });
           if (res?.dataUrl) {
+            fullScreenshot = res.dataUrl;
             croppedScreenshot = await cropScreenshot(res.dataUrl, rect, window.innerWidth, window.innerHeight);
-            // Keep screenshots under 200KB to prevent storage bloat
             if (croppedScreenshot && croppedScreenshot.length > 200000) {
               croppedScreenshot = await recompressScreenshot(croppedScreenshot, 0.65);
             }
@@ -345,9 +346,6 @@
 
         // Smart title generation
         const title = generateSmartTitle(target);
-
-        // Show inline comment input and wait for user to type + confirm
-        const comment = await showInlineCommentInput(rect, stepCount + 1);
 
         stepCount++;
 
@@ -366,22 +364,16 @@
           },
           elementText: target.textContent?.trim().slice(0, 100) || '',
           tagName: target.tagName.toLowerCase(),
-          screenshot: null,
+          screenshot: fullScreenshot,
           croppedScreenshot,
           highlightColor,
           timestamp: Date.now(),
           title,
-          description: comment || '',
+          description: '',
           annotations: [],
         };
 
-        console.log(`[Clarity] Saving step #${stepCount}:`, {
-          title,
-          description: comment || '(empty)',
-          hasScreenshot: !!croppedScreenshot,
-          screenshotSize: croppedScreenshot ? Math.round(croppedScreenshot.length / 1024) + 'KB' : 'none',
-        });
-
+        // AUTO-SAVE immediately — no comment prompt, no waiting
         const addRes = await chrome.runtime.sendMessage({
           type: 'add-step',
           sessionId,
@@ -390,14 +382,8 @@
 
         if (addRes?.error) {
           console.error('[Clarity] Failed to save step:', addRes.error);
-          showStepCountToast(stepCount, true); // show error toast
+          showStepCountToast(stepCount, true);
         } else {
-          console.log('[Clarity] Step saved successfully, total:', addRes.stepCount);
-          // Show saved comment overlay on the page if comment exists
-          if (comment) {
-            showCommentOverlay(rect, stepCount, comment);
-          }
-          // Show toast
           showStepCountToast(stepCount);
         }
       } catch (err) {
@@ -512,31 +498,11 @@
     badge.className = 'clarity-step-badge';
     badge.textContent = number;
 
-    // Position badge at top-left of element, offset outward
-    const badgeX = rect.left + window.scrollX - 16;
-    const badgeY = rect.top + window.scrollY - 16;
-    badge.style.left = badgeX + 'px';
-    badge.style.top = badgeY + 'px';
+    // Position badge at top-left corner of the element highlight
+    badge.style.left = (rect.left + window.scrollX - 12) + 'px';
+    badge.style.top = (rect.top + window.scrollY - 12) + 'px';
 
     document.body.appendChild(badge);
-
-    // Create dashed connector line from badge to element center
-    const line = document.createElement('div');
-    line.className = 'clarity-badge-connector';
-    const cx = rect.left + window.scrollX + rect.width / 2;
-    const cy = rect.top + window.scrollY + rect.height / 2;
-    const bx = badgeX + 14;
-    const by = badgeY + 14;
-    const length = Math.sqrt((cx - bx) ** 2 + (cy - by) ** 2);
-    const angle = Math.atan2(cy - by, cx - bx) * 180 / Math.PI;
-
-    line.style.left = bx + 'px';
-    line.style.top = by + 'px';
-    line.style.width = length + 'px';
-    line.style.transform = `rotate(${angle}deg)`;
-    document.body.appendChild(line);
-
-    badge._connector = line;
     return badge;
   }
 
@@ -562,7 +528,6 @@
   function removeLastBadge() {
     const last = stepBadges.pop();
     if (last) {
-      last.badge._connector?.remove();
       last.badge.remove();
       last.highlight.remove();
       last.commentOverlay?.remove();
@@ -571,7 +536,6 @@
 
   function clearAllBadges() {
     for (const b of stepBadges) {
-      b.badge._connector?.remove();
       b.badge.remove();
       b.highlight.remove();
       b.commentOverlay?.remove();
