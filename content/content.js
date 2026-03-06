@@ -21,7 +21,8 @@
   let toolbar = null;
   let cursorOverlay = null;
   let annotationLayer = null;
-  let cursorStyle = 'ripple';
+  let cursorStyle = 'default';
+  let cursorFollower = null;
   let isAnnotating = false;
   let annotationStartPoint = null;
   let currentAnnotations = [];
@@ -46,6 +47,49 @@
     zoom: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/><path d="M8 11h6M11 8v6"/></svg>',
     annotate: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
     cursor: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M4 2l14 10-6 1.5L9 20z"/></svg>',
+  };
+
+  // ── Cursor Definitions (30 styles) ─────────────────────────────────────
+  // Each cursor has: name, svg (40x40 viewBox), hotX, hotY offset from top-left
+  const CURSOR_DEFS = {
+    // === ARROWS ===
+    'default':      { name: 'Default',       category: 'Arrows', svg: null },
+    'bold-arrow':   { name: 'Bold Arrow',    category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M6 3L34 20 22 22.5 16 35Z" fill="#333" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>', hotX: 6, hotY: 3 },
+    'dark-arrow':   { name: 'Dark Arrow',    category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M8 4L32 19 21 21.5 15 33Z" fill="#111" stroke="#fff" stroke-width="3" stroke-linejoin="round"/></svg>', hotX: 8, hotY: 4 },
+    'white-arrow':  { name: 'White Arrow',   category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M8 4L32 19 21 21.5 15 33Z" fill="#fff" stroke="#222" stroke-width="2.5" stroke-linejoin="round"/></svg>', hotX: 8, hotY: 4 },
+    'neon-arrow':   { name: 'Neon Arrow',    category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><defs><filter id="ng"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M8 4L32 19 21 21.5 15 33Z" fill="#0ff" stroke="#fff" stroke-width="2" stroke-linejoin="round" filter="url(#ng)"/></svg>', hotX: 8, hotY: 4 },
+    'red-arrow':    { name: 'Red Arrow',     category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M8 4L32 19 21 21.5 15 33Z" fill="#FF2D55" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>', hotX: 8, hotY: 4 },
+    'blue-arrow':   { name: 'Blue Arrow',    category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M8 4L32 19 21 21.5 15 33Z" fill="#007AFF" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>', hotX: 8, hotY: 4 },
+    'green-arrow':  { name: 'Green Arrow',   category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M8 4L32 19 21 21.5 15 33Z" fill="#34C759" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>', hotX: 8, hotY: 4 },
+    'orange-arrow': { name: 'Orange Arrow',  category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M8 4L32 19 21 21.5 15 33Z" fill="#FF9500" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>', hotX: 8, hotY: 4 },
+    'purple-arrow': { name: 'Purple Arrow',  category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M8 4L32 19 21 21.5 15 33Z" fill="#AF52DE" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>', hotX: 8, hotY: 4 },
+    'outline-arrow':{ name: 'Outline Arrow', category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M8 4L32 19 21 21.5 15 33Z" fill="none" stroke="#333" stroke-width="3" stroke-linejoin="round"/></svg>', hotX: 8, hotY: 4 },
+
+    // === DOTS ===
+    'dot-black':    { name: 'Black Dot',     category: 'Dots', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="10" fill="#111" stroke="#fff" stroke-width="3"/></svg>', hotX: 20, hotY: 20 },
+    'dot-white':    { name: 'White Dot',     category: 'Dots', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="10" fill="#fff" stroke="#222" stroke-width="3"/></svg>', hotX: 20, hotY: 20 },
+    'dot-red':      { name: 'Red Dot',       category: 'Dots', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="10" fill="#FF2D55" stroke="#fff" stroke-width="3"/></svg>', hotX: 20, hotY: 20 },
+    'dot-blue':     { name: 'Blue Dot',      category: 'Dots', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="10" fill="#007AFF" stroke="#fff" stroke-width="3"/></svg>', hotX: 20, hotY: 20 },
+    'dot-glow':     { name: 'Glow Dot',      category: 'Dots', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><defs><filter id="dg"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><circle cx="20" cy="20" r="7" fill="#FF2D55" filter="url(#dg)"/></svg>', hotX: 20, hotY: 20 },
+    'dot-ring':     { name: 'Ring Dot',      category: 'Dots', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="12" fill="none" stroke="#333" stroke-width="3"/><circle cx="20" cy="20" r="4" fill="#333"/></svg>', hotX: 20, hotY: 20 },
+    'dot-target':   { name: 'Target',        category: 'Dots', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="none" stroke="#FF2D55" stroke-width="2"/><circle cx="20" cy="20" r="8" fill="none" stroke="#FF2D55" stroke-width="2"/><circle cx="20" cy="20" r="3" fill="#FF2D55"/></svg>', hotX: 20, hotY: 20 },
+    'dot-crosshair':{ name: 'Crosshair',     category: 'Dots', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><line x1="20" y1="4" x2="20" y2="16" stroke="#333" stroke-width="2.5" stroke-linecap="round"/><line x1="20" y1="24" x2="20" y2="36" stroke="#333" stroke-width="2.5" stroke-linecap="round"/><line x1="4" y1="20" x2="16" y2="20" stroke="#333" stroke-width="2.5" stroke-linecap="round"/><line x1="24" y1="20" x2="36" y2="20" stroke="#333" stroke-width="2.5" stroke-linecap="round"/><circle cx="20" cy="20" r="3" fill="#FF2D55"/></svg>', hotX: 20, hotY: 20 },
+
+    // === SPARKLE / GLITTER ===
+    'sparkle-gold': { name: 'Gold Sparkle',  category: 'Sparkle', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M20 4L22 16 34 14 24 20 34 26 22 24 20 36 18 24 6 26 16 20 6 14 18 16Z" fill="#FFD700" stroke="#B8860B" stroke-width="1"/></svg>', hotX: 20, hotY: 20 },
+    'sparkle-white':{ name: 'White Sparkle', category: 'Sparkle', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M20 4L22 16 34 14 24 20 34 26 22 24 20 36 18 24 6 26 16 20 6 14 18 16Z" fill="#fff" stroke="#ccc" stroke-width="1"/></svg>', hotX: 20, hotY: 20 },
+    'sparkle-pink': { name: 'Pink Sparkle',  category: 'Sparkle', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M20 4L22 16 34 14 24 20 34 26 22 24 20 36 18 24 6 26 16 20 6 14 18 16Z" fill="#FF69B4" stroke="#FF1493" stroke-width="1"/></svg>', hotX: 20, hotY: 20 },
+    'star-gold':    { name: 'Gold Star',     category: 'Sparkle', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M20 4L24.5 15 36 15.5 27 22.5 30 34 20 27 10 34 13 22.5 4 15.5 15.5 15Z" fill="#FFD700" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>', hotX: 20, hotY: 20 },
+    'diamond':      { name: 'Diamond',       category: 'Sparkle', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M20 4L34 20 20 36 6 20Z" fill="#87CEEB" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/><path d="M20 4L34 20 20 36" fill="rgba(255,255,255,0.3)"/></svg>', hotX: 20, hotY: 20 },
+    'glitter':      { name: 'Glitter',       category: 'Sparkle', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="8" fill="#FFD700" stroke="#fff" stroke-width="2"/><circle cx="12" cy="10" r="3" fill="#FFF" opacity="0.8"/><circle cx="30" cy="12" r="2.5" fill="#FFF" opacity="0.7"/><circle cx="28" cy="30" r="3" fill="#FFF" opacity="0.6"/><circle cx="10" cy="28" r="2" fill="#FFF" opacity="0.7"/><circle cx="20" cy="6" r="1.5" fill="#FFF" opacity="0.5"/></svg>', hotX: 20, hotY: 20 },
+
+    // === SPECIAL ===
+    'hand-point':   { name: 'Hand Point',    category: 'Special', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M18 8c0-2 3-2 3 0v10l2-1c1.5-1 3.5 0 2.5 2l-1 2 1.5 0c1.5 0 2.5 1.5 1.5 3l-5 7c-1 1.5-3 2.5-5 2.5h-3c-3 0-5-2-5-5v-8c0-2 3-2 3 0v3" fill="#FFDAB9" stroke="#333" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>', hotX: 18, hotY: 8 },
+    'heart':        { name: 'Heart',         category: 'Special', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M20 34S4 24 4 14C4 8 9 4 14 4c3 0 5 2 6 4 1-2 3-4 6-4 5 0 10 4 10 10 0 10-16 20-16 20Z" fill="#FF2D55" stroke="#fff" stroke-width="2"/></svg>', hotX: 20, hotY: 34 },
+    'lightning':    { name: 'Lightning',     category: 'Special', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M22 4L10 22h8l-4 14L30 16H20L22 4Z" fill="#FFD700" stroke="#333" stroke-width="1.5" stroke-linejoin="round"/></svg>', hotX: 16, hotY: 4 },
+    'fire':         { name: 'Fire',          category: 'Special', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M20 4C20 4 28 12 28 22C28 28 24.5 34 20 34C15.5 34 12 28 12 22C12 16 16 12 16 12C16 12 14 18 17 22C18 24 19 22 19 20C19 16 20 4 20 4Z" fill="#FF6600" stroke="#CC3300" stroke-width="1"/><path d="M20 18C20 18 24 22 24 26C24 30 22 32 20 32C18 32 16 30 16 26C16 22 20 18 20 18Z" fill="#FFD700"/></svg>', hotX: 20, hotY: 34 },
+    'emoji-point':  { name: 'Pointer Hand',  category: 'Special', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><text x="4" y="32" font-size="32">&#x261D;</text></svg>', hotX: 16, hotY: 4 },
+    'circle-pulse': { name: 'Pulse Circle',  category: 'Special', animated: true, svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="6" fill="rgba(255,45,85,0.8)" stroke="#fff" stroke-width="2"><animate attributeName="r" values="6;10;6" dur="1s" repeatCount="indefinite"/></circle><circle cx="20" cy="20" r="14" fill="none" stroke="rgba(255,45,85,0.3)" stroke-width="2"><animate attributeName="r" values="14;18;14" dur="1s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.5;0;0.5" dur="1s" repeatCount="indefinite"/></circle></svg>', hotX: 20, hotY: 20 },
   };
 
   // ── Message Listener ────────────────────────────────────────────────────
@@ -110,8 +154,8 @@
       <button class="clarity-tb-btn" id="clarity-btn-pause" title="Pause">${ICONS.pause}</button>
       ${mode === 'recording' ? `
         <button class="clarity-tb-btn" id="clarity-btn-zoom" title="Zoom">${ICONS.zoom}</button>
-        <button class="clarity-tb-btn" id="clarity-btn-cursor" title="Cursor Style">${ICONS.cursor}</button>
       ` : ''}
+      <button class="clarity-tb-btn" id="clarity-btn-cursor" title="Cursor Style">${ICONS.cursor}</button>
       <button class="clarity-tb-btn" id="clarity-btn-annotate" title="Annotate">${ICONS.annotate}</button>
       <div class="clarity-tb-sep"></div>
       <button class="clarity-tb-btn stop" id="clarity-btn-stop" title="Stop">${ICONS.stop}</button>
@@ -126,6 +170,16 @@
     cursorOverlay = document.createElement('div');
     cursorOverlay.id = 'clarity-cursor-overlay';
     document.body.appendChild(cursorOverlay);
+
+    // Custom cursor follower
+    cursorFollower = document.createElement('div');
+    cursorFollower.id = 'clarity-cursor-follower';
+    cursorFollower.style.display = 'none';
+    document.body.appendChild(cursorFollower);
+
+    // Track mouse for custom cursor
+    document.addEventListener('mousemove', updateCursorFollower, true);
+    applyCursorStyle();
 
     annotationLayer = document.createElement('canvas');
     annotationLayer.id = 'clarity-annotation-layer';
@@ -143,9 +197,9 @@
     document.getElementById('clarity-btn-pause').addEventListener('click', handlePause);
     document.getElementById('clarity-btn-annotate').addEventListener('click', handleAnnotateToggle);
 
+    document.getElementById('clarity-btn-cursor').addEventListener('click', handleCursorMenu);
     if (mode === 'recording') {
       document.getElementById('clarity-btn-zoom').addEventListener('click', handleZoomTrigger);
-      document.getElementById('clarity-btn-cursor').addEventListener('click', handleCursorMenu);
     }
 
     makeDraggable(toolbar);
@@ -167,11 +221,15 @@
     clearInterval(timerInterval);
     toolbar?.remove();
     cursorOverlay?.remove();
+    cursorFollower?.remove();
     annotationLayer?.remove();
     hoverHighlight?.remove();
     clearAllBadges();
+    document.removeEventListener('mousemove', updateCursorFollower, true);
+    document.documentElement.classList.remove('clarity-custom-cursor');
     toolbar = null;
     cursorOverlay = null;
+    cursorFollower = null;
     annotationLayer = null;
     hoverHighlight = null;
     removeGuideListeners();
@@ -521,6 +579,7 @@
     if (!el) return false;
     return el.closest('#clarity-toolbar') ||
            el.closest('#clarity-cursor-overlay') ||
+           el.closest('#clarity-cursor-follower') ||
            el.closest('#clarity-annotation-layer') ||
            el.closest('#clarity-hover-highlight') ||
            el.closest('.clarity-step-badge') ||
@@ -967,83 +1026,114 @@
     setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 100);
   }
 
-  // ── Cursor Effects ────────────────────────────────────────────────────
+  // ── Custom Cursor System ──────────────────────────────────────────────
+
+  function updateCursorFollower(e) {
+    if (!cursorFollower || cursorStyle === 'default') return;
+    const def = CURSOR_DEFS[cursorStyle];
+    if (!def) return;
+    const hotX = def.hotX || 0;
+    const hotY = def.hotY || 0;
+    cursorFollower.style.transform = `translate(${e.clientX - hotX}px, ${e.clientY - hotY}px)`;
+  }
+
+  function applyCursorStyle() {
+    if (!cursorFollower) return;
+    const def = CURSOR_DEFS[cursorStyle];
+
+    if (!def || !def.svg) {
+      // Default cursor — hide follower, show normal cursor
+      cursorFollower.style.display = 'none';
+      document.documentElement.classList.remove('clarity-custom-cursor');
+      return;
+    }
+
+    // Set the SVG as cursor follower content
+    cursorFollower.innerHTML = def.svg;
+    cursorFollower.style.display = 'block';
+    document.documentElement.classList.add('clarity-custom-cursor');
+  }
 
   function updateCursorEffect(x, y) {
-    if (!cursorOverlay) return;
-
-    if (cursorStyle === 'glow') {
-      let glow = cursorOverlay.querySelector('.clarity-cursor-glow');
-      if (!glow) { glow = document.createElement('div'); glow.className = 'clarity-cursor-glow'; cursorOverlay.appendChild(glow); }
-      glow.style.left = x + 'px';
-      glow.style.top = y + 'px';
-    } else if (cursorStyle === 'spotlight') {
-      let spot = cursorOverlay.querySelector('.clarity-cursor-spotlight');
-      if (!spot) { spot = document.createElement('div'); spot.className = 'clarity-cursor-spotlight'; cursorOverlay.appendChild(spot); }
-      spot.style.left = x + 'px';
-      spot.style.top = y + 'px';
-    } else if (cursorStyle === 'trail') {
-      const dot = document.createElement('div');
-      dot.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:6px;height:6px;border-radius:50%;background:rgba(0,0,0,0.3);pointer-events:none;transform:translate(-50%,-50%);transition:opacity 0.5s;`;
-      cursorOverlay.appendChild(dot);
-      setTimeout(() => { dot.style.opacity = '0'; setTimeout(() => dot.remove(), 500); }, 200);
-    }
+    // Legacy — noop, cursor effects are now visual follower
   }
 
   function triggerClickAnimation(x, y) {
     if (!cursorOverlay) return;
-
-    if (cursorStyle === 'ripple' || cursorStyle === 'glow' || cursorStyle === 'spotlight') {
-      const ripple = document.createElement('div');
-      ripple.className = 'clarity-cursor-ripple';
-      ripple.style.left = x + 'px';
-      ripple.style.top = y + 'px';
-      cursorOverlay.appendChild(ripple);
-      setTimeout(() => ripple.remove(), 600);
-    } else if (cursorStyle === 'pulse') {
-      const pulse = document.createElement('div');
-      pulse.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,0.4);pointer-events:none;transform:translate(-50%,-50%) scale(1);animation:clarity-pulse-click 0.4s ease-out forwards;`;
-      cursorOverlay.appendChild(pulse);
-      setTimeout(() => pulse.remove(), 400);
-    } else if (cursorStyle === 'particle') {
-      for (let i = 0; i < 8; i++) {
-        const angle = (Math.PI * 2 * i) / 8;
-        const dx = Math.cos(angle) * 30;
-        const dy = Math.sin(angle) * 30;
-        const p = document.createElement('div');
-        p.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:4px;height:4px;border-radius:50%;background:#000;pointer-events:none;transform:translate(-50%,-50%);transition:all 0.4s ease-out;opacity:1;`;
-        cursorOverlay.appendChild(p);
-        requestAnimationFrame(() => { p.style.left = (x + dx) + 'px'; p.style.top = (y + dy) + 'px'; p.style.opacity = '0'; });
-        setTimeout(() => p.remove(), 400);
-      }
-    }
+    // Always show a ripple on click regardless of cursor style
+    const ripple = document.createElement('div');
+    ripple.className = 'clarity-cursor-ripple';
+    ripple.style.left = x + 'px';
+    ripple.style.top = y + 'px';
+    cursorOverlay.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 600);
   }
 
-  // ── Cursor Style Menu ─────────────────────────────────────────────────
+  // ── Cursor Style Menu (Grid Picker) ────────────────────────────────────
 
   function handleCursorMenu() {
-    let dropdown = toolbar.querySelector('.clarity-dropdown');
-    if (dropdown) { dropdown.classList.toggle('open'); return; }
+    let picker = toolbar.querySelector('.clarity-cursor-picker');
+    if (picker) { picker.classList.toggle('open'); return; }
 
-    const styles = ['ripple', 'glow', 'trail', 'spotlight', 'pulse', 'particle'];
-    dropdown = document.createElement('div');
-    dropdown.className = 'clarity-dropdown open';
+    picker = document.createElement('div');
+    picker.className = 'clarity-cursor-picker open';
 
-    for (const style of styles) {
-      const btn = document.createElement('button');
-      btn.className = 'clarity-dropdown-item' + (style === cursorStyle ? ' selected' : '');
-      btn.textContent = style.charAt(0).toUpperCase() + style.slice(1);
-      btn.addEventListener('click', () => {
-        cursorStyle = style;
-        if (cursorOverlay) cursorOverlay.innerHTML = '';
-        dropdown.classList.remove('open');
-      });
-      dropdown.appendChild(btn);
+    // Group by category
+    const categories = {};
+    for (const [id, def] of Object.entries(CURSOR_DEFS)) {
+      const cat = def.category || 'Other';
+      if (!categories[cat]) categories[cat] = [];
+      categories[cat].push({ id, ...def });
     }
 
-    toolbar.appendChild(dropdown);
+    for (const [catName, items] of Object.entries(categories)) {
+      const catLabel = document.createElement('div');
+      catLabel.className = 'clarity-cursor-cat';
+      catLabel.textContent = catName;
+      picker.appendChild(catLabel);
+
+      const grid = document.createElement('div');
+      grid.className = 'clarity-cursor-grid';
+
+      for (const item of items) {
+        const cell = document.createElement('button');
+        cell.className = 'clarity-cursor-cell' + (item.id === cursorStyle ? ' selected' : '');
+        cell.title = item.name;
+
+        if (item.svg) {
+          cell.innerHTML = item.svg;
+        } else {
+          // Default cursor icon
+          cell.innerHTML = '<svg viewBox="0 0 40 40" width="40" height="40"><path d="M10 6L30 20 20 22 16 32Z" fill="#666" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+        }
+
+        cell.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          cursorStyle = item.id;
+          if (cursorOverlay) cursorOverlay.innerHTML = '';
+          applyCursorStyle();
+          // Update selection UI
+          picker.querySelectorAll('.clarity-cursor-cell').forEach(c => c.classList.remove('selected'));
+          cell.classList.add('selected');
+        });
+        grid.appendChild(cell);
+      }
+      picker.appendChild(grid);
+    }
+
+    toolbar.appendChild(picker);
+
+    // Stop clicks inside picker from propagating to document
+    picker.addEventListener('click', (ev) => ev.stopPropagation(), true);
+    picker.addEventListener('mousedown', (ev) => ev.stopPropagation(), true);
+
     setTimeout(() => {
-      const close = (e) => { if (!dropdown.contains(e.target)) { dropdown.classList.remove('open'); document.removeEventListener('click', close); } };
+      const close = (e) => {
+        if (!picker.contains(e.target) && !e.target.closest('#clarity-btn-cursor')) {
+          picker.classList.remove('open');
+          document.removeEventListener('click', close);
+        }
+      };
       document.addEventListener('click', close);
     }, 0);
   }
@@ -1125,7 +1215,7 @@
   function makeDraggable(el) {
     let isDragging = false, offsetX = 0, offsetY = 0;
     el.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.clarity-tb-btn') || e.target.closest('.clarity-dropdown')) return;
+      if (e.target.closest('.clarity-tb-btn') || e.target.closest('.clarity-dropdown') || e.target.closest('.clarity-cursor-picker')) return;
       isDragging = true;
       offsetX = e.clientX - el.getBoundingClientRect().left;
       offsetY = e.clientY - el.getBoundingClientRect().top;

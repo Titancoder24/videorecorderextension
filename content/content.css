@@ -268,7 +268,101 @@
   to { opacity: 0; }
 }
 
-/* ── Cursor Styles ───────────────────────────────────────────────────── */
+/* ── Custom Cursor Follower ──────────────────────────────────────────── */
+
+html.clarity-custom-cursor,
+html.clarity-custom-cursor * {
+  cursor: none !important;
+}
+
+#clarity-cursor-follower {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 40px;
+  height: 40px;
+  pointer-events: none;
+  z-index: 2147483647;
+  will-change: transform;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+#clarity-cursor-follower svg {
+  width: 40px;
+  height: 40px;
+  display: block;
+}
+
+/* ── Cursor Picker Grid ─────────────────────────────────────────────── */
+
+.clarity-cursor-picker {
+  position: absolute;
+  bottom: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 10px;
+  width: 280px;
+  max-height: 340px;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  display: none;
+  scrollbar-width: thin;
+  scrollbar-color: #444 transparent;
+}
+
+.clarity-cursor-picker.open { display: block; }
+
+.clarity-cursor-cat {
+  font-size: 10px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 6px 4px 4px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+}
+
+.clarity-cursor-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.clarity-cursor-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: #252525;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.clarity-cursor-cell:hover {
+  background: #333;
+  border-color: #555;
+}
+
+.clarity-cursor-cell.selected {
+  border-color: #fff;
+  background: #333;
+}
+
+.clarity-cursor-cell svg {
+  width: 32px;
+  height: 32px;
+  display: block;
+}
+
+/* ── Cursor Click Ripple ────────────────────────────────────────────── */
 
 .clarity-cursor-ripple {
   position: absolute;
@@ -283,26 +377,6 @@
 @keyframes clarity-ripple-out {
   0% { transform: translate(-50%, -50%) scale(0.3); opacity: 1; }
   100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
-}
-
-.clarity-cursor-glow {
-  position: absolute;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(0,0,0,0.3) 0%, transparent 70%);
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-}
-
-.clarity-cursor-spotlight {
-  position: absolute;
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
-  pointer-events: none;
-  transform: translate(-50%, -50%);
 }
 
 @keyframes clarity-pulse-click {
