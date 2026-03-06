@@ -1,6 +1,7 @@
 /**
- * Clarity Guide Editor
- * Two-panel interface for editing captured documentation guides.
+ * Clarity Guide Editor — Notion-style document editor
+ * Single scrollable page with inline-editable step blocks,
+ * contentEditable title/description, and floating annotation toolbar.
  */
 
 (() => {
@@ -14,8 +15,8 @@
 
   // Comment box state
   let selectedCommentBoxTemplate = null;
-  let activeCommentBoxIndex = -1; // which comment box is being text-edited
-  let draggingCommentBox = null; // { index, offsetX, offsetY }
+  let activeCommentBoxIndex = -1;
+  let draggingCommentBox = null;
   let commentBoxNumberCounter = 1;
 
   // ── Init ────────────────────────────────────────────────────────────────
@@ -40,8 +41,7 @@
 
     if (session) {
       exporter.setSession(session);
-      document.getElementById('session-title').textContent = session.title;
-      renderStepList();
+      renderDocument();
     }
 
     bindEvents();
@@ -51,6 +51,15 @@
   // ── Event Binding ───────────────────────────────────────────────────────
 
   function bindEvents() {
+    // Export dropdown
+    const exportBtn = document.getElementById('btn-export-menu');
+    const exportMenu = document.getElementById('export-dropdown');
+    exportBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      exportMenu.classList.toggle('hidden');
+    });
+    document.addEventListener('click', () => exportMenu.classList.add('hidden'));
+
     document.getElementById('btn-export-html').addEventListener('click', () => {
       const html = exporter.exportHTML();
       ClarityExporter.downloadBlob(html, `${session.title}.html`, 'text/html');
@@ -65,22 +74,30 @@
       exporter.exportPDF();
     });
 
-    // Title/desc editing
-    document.getElementById('preview-title').addEventListener('input', (e) => {
-      if (selectedStepIndex < 0) return;
-      session.steps[selectedStepIndex].title = e.target.value;
-      saveSession();
-      renderStepList();
-    });
-
-    document.getElementById('preview-desc').addEventListener('input', (e) => {
-      if (selectedStepIndex < 0) return;
-      session.steps[selectedStepIndex].description = e.target.value;
+    // Doc header edits
+    document.getElementById('doc-title').addEventListener('input', (e) => {
+      if (!session) return;
+      session.title = e.target.textContent.trim();
+      document.getElementById('session-title').textContent = session.title || 'Untitled Guide';
       saveSession();
     });
 
-    // Annotation tools
-    document.querySelectorAll('.anno-btn').forEach((btn) => {
+    document.getElementById('doc-subtitle').addEventListener('input', (e) => {
+      if (!session) return;
+      session.description = e.target.textContent.trim();
+      saveSession();
+    });
+
+    // Session title in topbar
+    document.getElementById('session-title').addEventListener('input', (e) => {
+      if (!session) return;
+      session.title = e.target.textContent.trim();
+      document.getElementById('doc-title').textContent = session.title;
+      saveSession();
+    });
+
+    // Floating annotation toolbar
+    document.querySelectorAll('.float-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         const tool = btn.dataset.tool;
         if (!tool) return;
@@ -90,26 +107,18 @@
           return;
         }
 
-        // Close comment picker if open
         closeCommentBoxPicker();
 
         if (annotationTool === tool) {
           annotationTool = null;
           btn.classList.remove('active');
         } else {
-          document.querySelectorAll('.anno-btn').forEach((b) => b.classList.remove('active'));
+          document.querySelectorAll('.float-btn').forEach((b) => b.classList.remove('active'));
           annotationTool = tool;
           btn.classList.add('active');
         }
       });
     });
-
-    // Annotation canvas
-    const canvas = document.getElementById('preview-annotation-canvas');
-    canvas.addEventListener('mousedown', onAnnotationStart);
-    canvas.addEventListener('mousemove', onAnnotationMove);
-    canvas.addEventListener('mouseup', onAnnotationEnd);
-    canvas.addEventListener('dblclick', onAnnotationDblClick);
 
     // Comment box picker close
     document.getElementById('commentbox-picker-close').addEventListener('click', closeCommentBoxPicker);
@@ -125,66 +134,181 @@
     document.getElementById('btn-download-video').addEventListener('click', downloadGeneratedVideo);
 
     initCursorPicker();
+
+    // Click outside to deselect step
+    document.getElementById('doc-page').addEventListener('click', (e) => {
+      if (!e.target.closest('.step-image-wrap')) {
+        deselectStep();
+      }
+    });
   }
 
-  // ── Step List Rendering ─────────────────────────────────────────────────
+  // ── Render Full Document ──────────────────────────────────────────────
 
-  function renderStepList() {
-    const list = document.getElementById('step-list');
+  function renderDocument() {
+    if (!session) return;
+
+    // Header
+    const titleEl = document.getElementById('doc-title');
+    const subtitleEl = document.getElementById('doc-subtitle');
+    const topTitle = document.getElementById('session-title');
+
+    titleEl.textContent = session.title || '';
+    subtitleEl.textContent = session.description || '';
+    topTitle.textContent = session.title || 'Untitled Guide';
+
+    renderSteps();
+  }
+
+  function renderSteps() {
+    const container = document.getElementById('doc-steps');
+    const emptyEl = document.getElementById('doc-empty');
     const steps = session?.steps || [];
-    document.getElementById('step-count').textContent = steps.length;
 
-    list.innerHTML = '';
+    container.innerHTML = '';
+
+    if (steps.length === 0) {
+      emptyEl.classList.remove('hidden');
+      return;
+    }
+    emptyEl.classList.add('hidden');
+
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i];
-      const el = document.createElement('div');
-      el.className = 'step-item' + (i === selectedStepIndex ? ' active' : '');
-      el.innerHTML = `
-        <span class="step-item-number">${i + 1}</span>
-        <div class="step-item-info">
-          <span class="step-item-title">${escapeHtml(step.title || `Step ${i + 1}`)}</span>
-          ${step.description ? `<span class="step-item-desc">${escapeHtml(step.description)}</span>` : ''}
-          <span class="step-item-url">${escapeHtml(truncateUrl(step.url))}</span>
-        </div>
-        ${(step.croppedScreenshot || step.screenshot) ? `<img class="step-item-thumb" src="${step.croppedScreenshot || step.screenshot}" />` : ''}
-      `;
-      el.addEventListener('click', () => selectStep(i));
-      list.appendChild(el);
+      const block = document.createElement('div');
+      block.className = 'step-block';
+      block.dataset.index = i;
+
+      // Drag handle
+      const handle = document.createElement('div');
+      handle.className = 'step-drag-handle';
+      handle.innerHTML = '<svg viewBox="0 0 10 16" width="10" height="16" fill="currentColor"><circle cx="3" cy="2" r="1.2"/><circle cx="7" cy="2" r="1.2"/><circle cx="3" cy="6" r="1.2"/><circle cx="7" cy="6" r="1.2"/><circle cx="3" cy="10" r="1.2"/><circle cx="7" cy="10" r="1.2"/><circle cx="3" cy="14" r="1.2"/><circle cx="7" cy="14" r="1.2"/></svg>';
+
+      // Title row: number badge + contentEditable title
+      const titleRow = document.createElement('div');
+      titleRow.className = 'step-title-row';
+
+      const badge = document.createElement('span');
+      badge.className = 'step-number';
+      badge.textContent = i + 1;
+
+      const title = document.createElement('span');
+      title.className = 'step-title';
+      title.contentEditable = 'true';
+      title.spellcheck = false;
+      title.textContent = step.title || '';
+      title.addEventListener('input', () => {
+        step.title = title.textContent.trim();
+        saveSession();
+      });
+      title.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); }
+      });
+
+      titleRow.appendChild(badge);
+      titleRow.appendChild(title);
+
+      // Description — contentEditable paragraph
+      const desc = document.createElement('div');
+      desc.className = 'step-desc';
+      desc.contentEditable = 'true';
+      desc.spellcheck = false;
+      desc.textContent = step.description || '';
+      desc.addEventListener('input', () => {
+        step.description = desc.textContent.trim();
+        saveSession();
+      });
+
+      // Screenshot image block
+      const imgWrap = document.createElement('div');
+      imgWrap.className = 'step-image-wrap';
+      imgWrap.dataset.stepIndex = i;
+
+      const screenshotSrc = step.croppedScreenshot || step.screenshot;
+      if (screenshotSrc) {
+        const img = document.createElement('img');
+        img.className = 'step-image';
+        img.src = screenshotSrc;
+        img.alt = `Step ${i + 1}`;
+        imgWrap.appendChild(img);
+
+        // Annotation canvas overlay
+        const canvas = document.createElement('canvas');
+        canvas.className = 'step-annotation-canvas';
+        canvas.dataset.stepIndex = i;
+        imgWrap.appendChild(canvas);
+
+        // Click to select for annotations
+        imgWrap.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectStep(i, imgWrap, canvas);
+        });
+
+        // Size canvas when image loads
+        img.addEventListener('load', () => {
+          canvas.width = imgWrap.offsetWidth;
+          canvas.height = imgWrap.offsetHeight;
+          redrawStepAnnotations(i, canvas);
+        });
+      } else {
+        imgWrap.style.display = 'none';
+      }
+
+      // Meta info
+      const meta = document.createElement('div');
+      meta.className = 'step-meta';
+      if (step.url) {
+        const urlSpan = document.createElement('span');
+        urlSpan.className = 'step-meta-url';
+        urlSpan.textContent = truncateUrl(step.url);
+        meta.appendChild(urlSpan);
+      }
+
+      // Divider
+      const divider = document.createElement('div');
+      divider.className = 'step-divider';
+
+      block.appendChild(handle);
+      block.appendChild(titleRow);
+      block.appendChild(desc);
+      if (screenshotSrc) block.appendChild(imgWrap);
+      block.appendChild(meta);
+
+      container.appendChild(block);
+
+      // Add divider between steps (not after last)
+      if (i < steps.length - 1) {
+        container.appendChild(divider);
+      }
     }
   }
 
-  // ── Step Selection ──────────────────────────────────────────────────────
+  // ── Step Selection (for annotations) ──────────────────────────────────
 
-  function selectStep(index) {
+  let activeCanvas = null;
+  let activeImgWrap = null;
+
+  function selectStep(index, imgWrap, canvas) {
+    // Deselect previous
+    if (activeImgWrap) activeImgWrap.classList.remove('selected');
+
     selectedStepIndex = index;
     activeCommentBoxIndex = -1;
-    const step = session.steps[index];
+    activeCanvas = canvas;
+    activeImgWrap = imgWrap;
 
-    document.getElementById('preview-empty').classList.add('hidden');
-    document.getElementById('preview-content').classList.remove('hidden');
+    imgWrap.classList.add('selected');
 
-    const img = document.getElementById('preview-screenshot');
-    const screenshotSrc = step.croppedScreenshot || step.screenshot;
-    if (screenshotSrc) {
-      img.src = screenshotSrc;
-      img.style.display = 'block';
-    } else {
-      img.style.display = 'none';
-    }
+    // Show floating toolbar
+    document.getElementById('float-toolbar').classList.remove('hidden');
 
-    document.getElementById('preview-title').value = step.title || '';
-    document.getElementById('preview-desc').value = step.description || '';
-    document.getElementById('preview-url').textContent = step.url || '';
-    document.getElementById('preview-selector').textContent = step.selector || '';
+    // Resize canvas
+    canvas.width = imgWrap.offsetWidth;
+    canvas.height = imgWrap.offsetHeight;
 
-    // Resize annotation canvas
-    const wrap = document.querySelector('.preview-screenshot-wrap');
-    const canvas = document.getElementById('preview-annotation-canvas');
-    canvas.width = wrap.offsetWidth;
-    canvas.height = wrap.offsetHeight;
-
-    // Count existing numbered comment boxes for counter
+    // Reset comment box counter
     commentBoxNumberCounter = 1;
+    const step = session.steps[index];
     if (step.annotations) {
       for (const a of step.annotations) {
         if (a.type === 'commentbox' && a.templateId) {
@@ -196,8 +320,24 @@
       }
     }
 
-    redrawStepAnnotations();
-    renderStepList();
+    redrawStepAnnotations(index, canvas);
+
+    // Bind annotation events to this canvas
+    canvas.onmousedown = onAnnotationStart;
+    canvas.onmousemove = onAnnotationMove;
+    canvas.onmouseup = onAnnotationEnd;
+    canvas.ondblclick = onAnnotationDblClick;
+  }
+
+  function deselectStep() {
+    if (activeImgWrap) activeImgWrap.classList.remove('selected');
+    activeImgWrap = null;
+    activeCanvas = null;
+    selectedStepIndex = -1;
+    annotationTool = null;
+    document.querySelectorAll('.float-btn').forEach((b) => b.classList.remove('active'));
+    document.getElementById('float-toolbar').classList.add('hidden');
+    closeCommentBoxPicker();
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -207,9 +347,7 @@
   function initCommentBoxPicker() {
     const categories = getCommentBoxCategories();
     const catContainer = document.getElementById('commentbox-categories');
-    const gridContainer = document.getElementById('commentbox-grid');
 
-    // Render category tabs
     catContainer.innerHTML = '';
     categories.forEach((cat, i) => {
       const btn = document.createElement('button');
@@ -223,7 +361,6 @@
       catContainer.appendChild(btn);
     });
 
-    // Render first category
     renderCommentBoxGrid(categories[0]);
   }
 
@@ -253,16 +390,11 @@
       item.addEventListener('click', () => {
         selectedCommentBoxTemplate = template;
         annotationTool = 'commentbox';
-
-        // Update active states
         grid.querySelectorAll('.commentbox-item').forEach((el) => el.classList.remove('active'));
         item.classList.add('active');
-        document.querySelectorAll('.anno-btn').forEach((b) => b.classList.remove('active'));
+        document.querySelectorAll('.float-btn').forEach((b) => b.classList.remove('active'));
         document.getElementById('btn-commentbox').classList.add('active');
-
-        // Set canvas cursor
-        const annoCanvas = document.getElementById('preview-annotation-canvas');
-        annoCanvas.style.cursor = 'crosshair';
+        if (activeCanvas) activeCanvas.style.cursor = 'crosshair';
       });
 
       grid.appendChild(item);
@@ -293,54 +425,43 @@
 
   function onAnnotationStart(e) {
     if (!annotationTool) {
-      // Check if clicking on existing comment box for dragging
       const pos = getCanvasPos(e);
       const step = session?.steps?.[selectedStepIndex];
       if (step?.annotations) {
         for (let i = step.annotations.length - 1; i >= 0; i--) {
           const a = step.annotations[i];
           if (a.type === 'commentbox' && isInsideBox(pos.x, pos.y, a)) {
-            draggingCommentBox = {
-              index: i,
-              offsetX: pos.x - a.startX,
-              offsetY: pos.y - a.startY,
-            };
+            draggingCommentBox = { index: i, offsetX: pos.x - a.startX, offsetY: pos.y - a.startY };
             return;
           }
         }
       }
       return;
     }
-
-    const pos = getCanvasPos(e);
-    annotationStart = { x: pos.x, y: pos.y };
+    annotationStart = getCanvasPos(e);
   }
 
   function onAnnotationMove(e) {
-    // Handle dragging
     if (draggingCommentBox) {
       const pos = getCanvasPos(e);
       const step = session.steps[selectedStepIndex];
       const a = step.annotations[draggingCommentBox.index];
       const dx = pos.x - draggingCommentBox.offsetX - a.startX;
       const dy = pos.y - draggingCommentBox.offsetY - a.startY;
-      a.startX += dx;
-      a.startY += dy;
-      a.endX += dx;
-      a.endY += dy;
+      a.startX += dx; a.startY += dy;
+      a.endX += dx; a.endY += dy;
       draggingCommentBox.offsetX = pos.x - a.startX;
       draggingCommentBox.offsetY = pos.y - a.startY;
-      redrawStepAnnotations();
+      redrawStepAnnotations(selectedStepIndex, activeCanvas);
       return;
     }
 
-    if (!annotationStart || !annotationTool) return;
-    const canvas = document.getElementById('preview-annotation-canvas');
-    const ctx = canvas.getContext('2d');
+    if (!annotationStart || !annotationTool || !activeCanvas) return;
+    const ctx = activeCanvas.getContext('2d');
     const pos = getCanvasPos(e);
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    redrawStepAnnotations(ctx);
+    ctx.clearRect(0, 0, activeCanvas.width, activeCanvas.height);
+    redrawStepAnnotations(selectedStepIndex, activeCanvas, ctx);
 
     if (annotationTool === 'arrow') {
       drawArrow(ctx, annotationStart.x, annotationStart.y, pos.x, pos.y);
@@ -358,7 +479,6 @@
   }
 
   function onAnnotationEnd(e) {
-    // End drag
     if (draggingCommentBox) {
       draggingCommentBox = null;
       saveSession();
@@ -367,7 +487,6 @@
 
     if (!annotationStart || !annotationTool) return;
     const pos = getCanvasPos(e);
-
     const step = session.steps[selectedStepIndex];
     if (!step.annotations) step.annotations = [];
 
@@ -376,38 +495,29 @@
       const y = Math.min(annotationStart.y, pos.y);
       const w = Math.abs(pos.x - annotationStart.x);
       const h = Math.abs(pos.y - annotationStart.y);
-
       if (w > 10 && h > 10) {
-        const anno = {
-          type: 'commentbox',
-          templateId: selectedCommentBoxTemplate.id,
-          startX: x,
-          startY: y,
-          endX: x + w,
-          endY: y + h,
+        step.annotations.push({
+          type: 'commentbox', templateId: selectedCommentBoxTemplate.id,
+          startX: x, startY: y, endX: x + w, endY: y + h,
           text: selectedCommentBoxTemplate.numbered ? '' : 'Type here...',
           number: selectedCommentBoxTemplate.numbered ? commentBoxNumberCounter++ : undefined,
-        };
-        step.annotations.push(anno);
+        });
         activeCommentBoxIndex = step.annotations.length - 1;
       }
     } else {
       step.annotations.push({
         type: annotationTool,
-        startX: annotationStart.x,
-        startY: annotationStart.y,
-        endX: pos.x,
-        endY: pos.y,
+        startX: annotationStart.x, startY: annotationStart.y,
+        endX: pos.x, endY: pos.y,
       });
     }
 
     saveSession();
     annotationStart = null;
-    redrawStepAnnotations();
+    redrawStepAnnotations(selectedStepIndex, activeCanvas);
   }
 
   function onAnnotationDblClick(e) {
-    // Double-click to edit comment box text
     const pos = getCanvasPos(e);
     const step = session?.steps?.[selectedStepIndex];
     if (!step?.annotations) return;
@@ -423,35 +533,33 @@
   }
 
   function onCommentBoxKeydown(e) {
-    // Delete active comment box with Delete/Backspace when no input focused
     if ((e.key === 'Delete' || e.key === 'Backspace') && activeCommentBoxIndex >= 0) {
       const active = document.activeElement;
-      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.contentEditable === 'true')) return;
 
       const step = session?.steps?.[selectedStepIndex];
       if (step?.annotations?.[activeCommentBoxIndex]) {
         step.annotations.splice(activeCommentBoxIndex, 1);
         activeCommentBoxIndex = -1;
         saveSession();
-        redrawStepAnnotations();
+        if (activeCanvas) redrawStepAnnotations(selectedStepIndex, activeCanvas);
       }
     }
 
-    // Escape to deselect
     if (e.key === 'Escape') {
       activeCommentBoxIndex = -1;
       hideCommentBoxTextInput();
-      redrawStepAnnotations();
+      if (activeCanvas) redrawStepAnnotations(selectedStepIndex, activeCanvas);
     }
   }
 
   function showCommentBoxTextInput(annotation) {
-    let input = document.getElementById('commentbox-text-input');
+    if (!activeImgWrap) return;
+    let input = activeImgWrap.querySelector('.commentbox-text-input');
     if (!input) {
       input = document.createElement('textarea');
-      input.id = 'commentbox-text-input';
       input.className = 'commentbox-text-input';
-      document.querySelector('.preview-screenshot-wrap').appendChild(input);
+      activeImgWrap.appendChild(input);
     }
 
     input.value = annotation.text || '';
@@ -465,39 +573,34 @@
     input.oninput = () => {
       annotation.text = input.value;
       saveSession();
-      redrawStepAnnotations();
+      if (activeCanvas) redrawStepAnnotations(selectedStepIndex, activeCanvas);
     };
-
-    input.onblur = () => {
-      hideCommentBoxTextInput();
-    };
+    input.onblur = () => hideCommentBoxTextInput();
   }
 
   function hideCommentBoxTextInput() {
-    const input = document.getElementById('commentbox-text-input');
-    if (input) input.style.display = 'none';
+    document.querySelectorAll('.commentbox-text-input').forEach((el) => {
+      el.style.display = 'none';
+    });
   }
 
-  function isInsideBox(x, y, annotation) {
-    return x >= annotation.startX && x <= annotation.endX &&
-           y >= annotation.startY && y <= annotation.endY;
+  function isInsideBox(x, y, a) {
+    return x >= a.startX && x <= a.endX && y >= a.startY && y <= a.endY;
   }
 
   function getCanvasPos(e) {
-    const canvas = document.getElementById('preview-annotation-canvas');
+    const canvas = e.target.closest('canvas') || activeCanvas;
+    if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-    return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    };
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
-  function redrawStepAnnotations(ctx) {
-    const canvas = document.getElementById('preview-annotation-canvas');
+  function redrawStepAnnotations(stepIndex, canvas, ctx) {
+    if (!canvas) return;
     if (!ctx) ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const step = session?.steps?.[selectedStepIndex];
+    const step = session?.steps?.[stepIndex];
     if (!step?.annotations) return;
 
     for (let i = 0; i < step.annotations.length; i++) {
@@ -513,17 +616,13 @@
       } else if (a.type === 'commentbox') {
         const template = getCommentBoxTemplate(a.templateId);
         if (template) {
-          const w = a.endX - a.startX;
-          const h = a.endY - a.startY;
-          drawCommentBox(ctx, template, a.startX, a.startY, w, h, a.text || '', { number: a.number });
-
-          // Draw selection border if active
+          drawCommentBox(ctx, template, a.startX, a.startY, a.endX - a.startX, a.endY - a.startY, a.text || '', { number: a.number });
           if (i === activeCommentBoxIndex) {
             ctx.save();
-            ctx.strokeStyle = '#007AFF';
+            ctx.strokeStyle = '#2383e2';
             ctx.lineWidth = 2;
             ctx.setLineDash([4, 4]);
-            ctx.strokeRect(a.startX - 3, a.startY - 3, w + 6, h + 6);
+            ctx.strokeRect(a.startX - 3, a.startY - 3, a.endX - a.startX + 6, a.endY - a.startY + 6);
             ctx.setLineDash([]);
             ctx.restore();
           }
@@ -537,27 +636,15 @@
   function drawArrow(ctx, x1, y1, x2, y2) {
     const headLen = 12;
     const angle = Math.atan2(y2 - y1, x2 - x1);
-
-    ctx.strokeStyle = '#000';
+    ctx.strokeStyle = '#191919';
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
-
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(x2, y2);
-    ctx.lineTo(
-      x2 - headLen * Math.cos(angle - Math.PI / 6),
-      y2 - headLen * Math.sin(angle - Math.PI / 6)
-    );
+    ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
     ctx.moveTo(x2, y2);
-    ctx.lineTo(
-      x2 - headLen * Math.cos(angle + Math.PI / 6),
-      y2 - headLen * Math.sin(angle + Math.PI / 6)
-    );
+    ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
     ctx.stroke();
   }
 
@@ -566,38 +653,23 @@
     ctx.strokeStyle = 'rgba(200, 180, 0, 0.5)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.rect(
-      Math.min(x1, x2),
-      Math.min(y1, y2),
-      Math.abs(x2 - x1),
-      Math.abs(y2 - y1)
-    );
-    ctx.fill();
-    ctx.stroke();
+    ctx.rect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
+    ctx.fill(); ctx.stroke();
   }
 
   function drawBlur(ctx, x1, y1, x2, y2) {
     ctx.fillStyle = 'rgba(200, 200, 200, 0.7)';
     ctx.beginPath();
-    ctx.rect(
-      Math.min(x1, x2),
-      Math.min(y1, y2),
-      Math.abs(x2 - x1),
-      Math.abs(y2 - y1)
-    );
+    ctx.rect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1));
     ctx.fill();
   }
 
   function drawNumberBadge(ctx, x, y, number) {
-    ctx.fillStyle = '#000';
-    ctx.beginPath();
-    ctx.arc(x, y, 14, 0, Math.PI * 2);
-    ctx.fill();
-
+    ctx.fillStyle = '#2383e2';
+    ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 12px -apple-system, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(String(number), x, y);
   }
 
@@ -611,7 +683,6 @@
   function initCursorPicker() {
     const categories = getCursorCategories();
     const catContainer = document.getElementById('cursor-categories');
-
     catContainer.innerHTML = '';
     categories.forEach((cat, i) => {
       const btn = document.createElement('button');
@@ -624,7 +695,6 @@
       });
       catContainer.appendChild(btn);
     });
-
     renderCursorGrid(categories[0]);
   }
 
@@ -632,31 +702,23 @@
     const grid = document.getElementById('cursor-grid');
     const cursors = getCursorsByCategory(category);
     grid.innerHTML = '';
-
     for (const cursor of cursors) {
       const item = document.createElement('div');
       item.className = 'cursor-item' + (selectedCursorId === cursor.id ? ' active' : '');
       item.title = cursor.name;
-
       const canvas = document.createElement('canvas');
-      canvas.width = 80;
-      canvas.height = 60;
+      canvas.width = 80; canvas.height = 60;
       canvas.className = 'cursor-preview-canvas';
       drawCursorPreview(canvas, cursor);
-
       const label = document.createElement('span');
       label.className = 'cursor-item-label';
       label.textContent = cursor.name;
-
-      item.appendChild(canvas);
-      item.appendChild(label);
-
+      item.appendChild(canvas); item.appendChild(label);
       item.addEventListener('click', () => {
         selectedCursorId = cursor.id;
         grid.querySelectorAll('.cursor-item').forEach((el) => el.classList.remove('active'));
         item.classList.add('active');
       });
-
       grid.appendChild(item);
     }
   }
@@ -672,7 +734,6 @@
 
   function closeVideoModal() {
     document.getElementById('video-modal').classList.add('hidden');
-    // Revoke any object URLs
     const video = document.getElementById('video-result');
     if (video.src) { URL.revokeObjectURL(video.src); video.src = ''; }
   }
@@ -687,7 +748,6 @@
     const stepDuration = parseInt(document.getElementById('video-step-duration').value);
     const zoomLevel = parseFloat(document.getElementById('video-zoom').value);
 
-    // Show progress
     document.getElementById('video-progress').classList.remove('hidden');
     document.getElementById('btn-do-generate').classList.add('hidden');
     document.getElementById('video-preview').classList.add('hidden');
@@ -698,12 +758,7 @@
 
     try {
       generatedVideoBlob = await generateVideoFromSteps(session, {
-        cursorStyleId: selectedCursorId,
-        width,
-        height,
-        fps,
-        stepDuration,
-        zoomLevel,
+        cursorStyleId: selectedCursorId, width, height, fps, stepDuration, zoomLevel,
         onProgress: (p) => {
           const pct = Math.round(p * 100);
           progressFill.style.width = pct + '%';
@@ -711,7 +766,6 @@
         },
       });
 
-      // Show preview
       const video = document.getElementById('video-result');
       video.src = URL.createObjectURL(generatedVideoBlob);
       document.getElementById('video-preview').classList.remove('hidden');
@@ -741,9 +795,7 @@
     const data = await chrome.storage.local.get('sessions');
     const sessions = data.sessions || [];
     const idx = sessions.findIndex((s) => s.id === session.id);
-    if (idx >= 0) {
-      sessions[idx] = session;
-    }
+    if (idx >= 0) sessions[idx] = session;
     await chrome.storage.local.set({ sessions });
   }
 

@@ -14,85 +14,82 @@
         <circle cx="12" cy="12" r="10"/>
         <path d="M12 2a10 10 0 0 1 0 20"/>
       </svg>
-      <span class="topbar-title" id="session-title">Untitled Guide</span>
+      <span class="topbar-title" id="session-title" contenteditable="true" spellcheck="false">Untitled Guide</span>
     </div>
     <div class="topbar-right">
       <button class="topbar-btn topbar-btn-video" id="btn-generate-video">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21"/></svg>
-        Generate Video
+        Video
       </button>
-      <button class="topbar-btn" id="btn-export-html">Export HTML</button>
-      <button class="topbar-btn" id="btn-export-md">Export Markdown</button>
-      <button class="topbar-btn" id="btn-export-pdf">Print / PDF</button>
+      <div class="topbar-dropdown">
+        <button class="topbar-btn" id="btn-export-menu">Export</button>
+        <div class="topbar-dropdown-menu hidden" id="export-dropdown">
+          <button class="dropdown-item" id="btn-export-html">HTML</button>
+          <button class="dropdown-item" id="btn-export-md">Markdown</button>
+          <button class="dropdown-item" id="btn-export-pdf">PDF</button>
+        </div>
+      </div>
     </div>
   </header>
 
-  <!-- Main Layout -->
-  <main class="editor-layout">
-    <!-- Left Panel: Step List -->
-    <aside class="step-list-panel" id="step-list-panel">
-      <div class="panel-header">
-        <h3>Steps</h3>
-        <span class="step-count" id="step-count">0</span>
+  <!-- Notion-style Document -->
+  <main class="doc-canvas">
+    <div class="doc-page" id="doc-page">
+      <!-- Cover / Header -->
+      <div class="doc-header" id="doc-header">
+        <div class="doc-icon" id="doc-icon">
+          <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#999" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="3"/>
+            <circle cx="8.5" cy="8.5" r="1.5" fill="#999" stroke="none"/>
+            <path d="M21 15l-5-5L5 21"/>
+          </svg>
+        </div>
+        <h1 class="doc-title" id="doc-title" contenteditable="true" spellcheck="false" data-placeholder="Untitled"></h1>
+        <p class="doc-subtitle" id="doc-subtitle" contenteditable="true" spellcheck="false" data-placeholder="Add a description..."></p>
       </div>
-      <div class="step-list" id="step-list"></div>
-    </aside>
 
-    <!-- Right Panel: Step Preview -->
-    <section class="preview-panel" id="preview-panel">
-      <div class="preview-empty" id="preview-empty">
-        <p>Select a step to preview and edit</p>
-      </div>
-      <div class="preview-content hidden" id="preview-content">
-        <div class="preview-screenshot-wrap">
-          <img class="preview-screenshot" id="preview-screenshot" alt="Step screenshot" />
-          <!-- Annotation canvas overlays the screenshot -->
-          <canvas class="preview-annotation-canvas" id="preview-annotation-canvas"></canvas>
-        </div>
-        <div class="preview-details">
-          <input class="preview-title-input" id="preview-title" placeholder="Step title..." />
-          <textarea class="preview-desc-input" id="preview-desc" placeholder="Add a description..." rows="3"></textarea>
-          <div class="preview-meta">
-            <span id="preview-url"></span>
-            <span id="preview-selector"></span>
-          </div>
-        </div>
-        <!-- Annotation Tools -->
-        <div class="annotation-toolbar" id="annotation-toolbar">
-          <button class="anno-btn" data-tool="arrow" title="Arrow">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          </button>
-          <button class="anno-btn" data-tool="highlight" title="Highlight">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
-          </button>
-          <button class="anno-btn" data-tool="text" title="Text">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
-          </button>
-          <button class="anno-btn" data-tool="blur" title="Blur">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>
-          </button>
-          <button class="anno-btn" data-tool="number" title="Number Badge">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><text x="12" y="16" text-anchor="middle" font-size="12" fill="currentColor">#</text></svg>
-          </button>
-          <div class="anno-sep"></div>
-          <button class="anno-btn anno-btn-wide" data-tool="commentbox" title="Comment Box" id="btn-commentbox">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            <span>Comment</span>
-          </button>
-        </div>
+      <!-- Step blocks rendered here -->
+      <div class="doc-steps" id="doc-steps"></div>
 
-        <!-- Comment Box Picker -->
-        <div class="commentbox-picker hidden" id="commentbox-picker">
-          <div class="commentbox-picker-header">
-            <span class="commentbox-picker-title">Choose a Comment Style</span>
-            <button class="commentbox-picker-close" id="commentbox-picker-close">&times;</button>
-          </div>
-          <div class="commentbox-categories" id="commentbox-categories"></div>
-          <div class="commentbox-grid" id="commentbox-grid"></div>
-        </div>
+      <!-- Add block hint -->
+      <div class="doc-empty" id="doc-empty">
+        <p>No steps captured yet. Start a guide capture to add steps.</p>
       </div>
-    </section>
+    </div>
   </main>
+
+  <!-- Floating annotation bar (shows when a step image is selected) -->
+  <div class="float-toolbar hidden" id="float-toolbar">
+    <button class="float-btn" data-tool="arrow" title="Arrow">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+    <button class="float-btn" data-tool="highlight" title="Highlight">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+    </button>
+    <button class="float-btn" data-tool="text" title="Text">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+    </button>
+    <button class="float-btn" data-tool="blur" title="Blur">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>
+    </button>
+    <button class="float-btn" data-tool="number" title="Number">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><text x="12" y="16" text-anchor="middle" font-size="12" fill="currentColor">#</text></svg>
+    </button>
+    <div class="float-sep"></div>
+    <button class="float-btn" data-tool="commentbox" id="btn-commentbox" title="Comment Box">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    </button>
+  </div>
+
+  <!-- Comment Box Picker -->
+  <div class="commentbox-picker hidden" id="commentbox-picker">
+    <div class="commentbox-picker-header">
+      <span class="commentbox-picker-title">Choose a Comment Style</span>
+      <button class="commentbox-picker-close" id="commentbox-picker-close">&times;</button>
+    </div>
+    <div class="commentbox-categories" id="commentbox-categories"></div>
+    <div class="commentbox-grid" id="commentbox-grid"></div>
+  </div>
 
   <!-- Video Generator Modal -->
   <div class="video-modal hidden" id="video-modal">
@@ -102,15 +99,11 @@
         <h3>Generate Animated Video</h3>
         <button class="video-modal-x" id="video-modal-x">&times;</button>
       </div>
-
-      <!-- Cursor Picker -->
       <div class="video-section">
         <label class="video-label">Choose Cursor Style</label>
         <div class="cursor-categories" id="cursor-categories"></div>
         <div class="cursor-grid" id="cursor-grid"></div>
       </div>
-
-      <!-- Settings -->
       <div class="video-section">
         <label class="video-label">Settings</label>
         <div class="video-settings-grid">
@@ -147,21 +140,13 @@
           </div>
         </div>
       </div>
-
-      <!-- Progress -->
       <div class="video-progress hidden" id="video-progress">
-        <div class="video-progress-bar">
-          <div class="video-progress-fill" id="video-progress-fill"></div>
-        </div>
+        <div class="video-progress-bar"><div class="video-progress-fill" id="video-progress-fill"></div></div>
         <span class="video-progress-text" id="video-progress-text">Generating...</span>
       </div>
-
-      <!-- Video Preview -->
       <div class="video-preview hidden" id="video-preview">
         <video id="video-result" controls></video>
       </div>
-
-      <!-- Actions -->
       <div class="video-actions">
         <button class="video-btn-generate" id="btn-do-generate">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5,3 19,12 5,21"/></svg>

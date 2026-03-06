@@ -7,377 +7,489 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: #fff;
-  color: #000;
+  color: #191919;
   height: 100vh;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── Top Bar ──────────────────────────────────────────────────────────── */
+::selection {
+  background: rgba(35, 131, 226, 0.28);
+}
+
+/* ── Top Bar (slim, Notion-style) ────────────────────────────────────── */
 
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
-  border-bottom: 1px solid #e5e5e5;
-  height: 52px;
+  padding: 0 14px;
+  height: 44px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .topbar-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .logo-icon {
-  color: #000;
+  color: #999;
+  flex-shrink: 0;
 }
 
 .topbar-title {
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: -0.2px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #37352f;
+  outline: none;
+  border-radius: 3px;
+  padding: 2px 4px;
+  min-width: 40px;
+  max-width: 300px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.topbar-title:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.topbar-title:focus {
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .topbar-right {
   display: flex;
   gap: 6px;
+  align-items: center;
 }
 
 .topbar-btn {
-  padding: 6px 14px;
+  padding: 4px 12px;
   background: #fff;
-  border: 1.5px solid #d4d4d4;
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s;
-  color: #000;
+  transition: all 0.12s;
+  color: #37352f;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .topbar-btn:hover {
-  border-color: #000;
-  background: #fafafa;
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .topbar-btn:active {
   transform: scale(0.97);
 }
 
-/* ── Editor Layout ────────────────────────────────────────────────────── */
-
-.editor-layout {
-  display: flex;
-  height: calc(100vh - 52px);
+.topbar-btn-video {
+  background: #2383e2;
+  color: #fff;
+  border-color: #2383e2;
 }
 
-/* ── Step List Panel ──────────────────────────────────────────────────── */
+.topbar-btn-video:hover {
+  background: #1b6ec2;
+  border-color: #1b6ec2;
+}
 
-.step-list-panel {
-  width: 280px;
-  border-right: 1px solid #e5e5e5;
+.topbar-btn-video svg {
+  fill: #fff;
+  stroke: #fff;
+}
+
+/* Export dropdown */
+.topbar-dropdown {
+  position: relative;
+}
+
+.topbar-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  z-index: 200;
+  min-width: 140px;
+  padding: 4px;
+}
+
+.topbar-dropdown-menu.hidden { display: none; }
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 7px 12px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: #37352f;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+
+.dropdown-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* ── Document Canvas (the Notion page scroll area) ───────────────────── */
+
+.doc-canvas {
+  height: calc(100vh - 44px);
+  overflow-y: auto;
+  background: #fff;
+  display: flex;
+  justify-content: center;
+}
+
+.doc-page {
+  width: 100%;
+  max-width: 760px;
+  padding: 0 48px 120px;
+}
+
+/* ── Document Header ─────────────────────────────────────────────────── */
+
+.doc-header {
+  padding: 80px 0 24px;
+}
+
+.doc-icon {
+  margin-bottom: 12px;
+  opacity: 0.4;
+  cursor: pointer;
+  display: inline-block;
+  transition: opacity 0.15s;
+}
+
+.doc-icon:hover {
+  opacity: 0.6;
+}
+
+.doc-title {
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  color: #191919;
+  outline: none;
+  border: none;
+  width: 100%;
+  padding: 3px 2px;
+  border-radius: 3px;
+}
+
+.doc-title:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(55, 53, 47, 0.15);
+  pointer-events: none;
+}
+
+.doc-subtitle {
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: rgba(55, 53, 47, 0.5);
+  outline: none;
+  border: none;
+  margin-top: 4px;
+  padding: 3px 2px;
+  border-radius: 3px;
+}
+
+.doc-subtitle:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(55, 53, 47, 0.15);
+  pointer-events: none;
+}
+
+/* ── Step Blocks ─────────────────────────────────────────────────────── */
+
+.doc-steps {
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
+  gap: 2px;
 }
 
-.panel-header {
+.step-block {
+  position: relative;
+  padding: 6px 0;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+
+.step-block:hover {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.step-block:hover .step-drag-handle {
+  opacity: 1;
+}
+
+/* Drag handle */
+.step-drag-handle {
+  position: absolute;
+  left: -28px;
+  top: 10px;
+  width: 18px;
+  height: 24px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid #f0f0f0;
+  justify-content: center;
+  border-radius: 3px;
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.15s;
+  color: rgba(55, 53, 47, 0.35);
 }
 
-.panel-header h3 {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #999;
+.step-drag-handle:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(55, 53, 47, 0.5);
 }
 
-.step-count {
-  font-size: 11px;
-  font-weight: 600;
-  color: #aaa;
-  background: #f5f5f5;
-  padding: 2px 8px;
-  border-radius: 10px;
+.step-drag-handle svg {
+  pointer-events: none;
 }
 
-.step-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px;
-}
-
-/* ── Step Items ───────────────────────────────────────────────────────── */
-
-.step-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.15s;
-  margin-bottom: 2px;
-}
-
-.step-item:hover {
-  background: #f5f5f5;
-}
-
-.step-item.active {
-  background: #f0f0f0;
-}
-
-.step-item-number {
-  display: flex;
+/* Step number — inline like Notion numbered list */
+.step-number {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #000;
+  background: #2383e2;
   color: #fff;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   flex-shrink: 0;
+  margin-right: 8px;
+  vertical-align: middle;
 }
 
-.step-item-info {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
+/* Step title — contentEditable heading */
+.step-title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: #191919;
+  outline: none;
+  display: inline;
+  border-radius: 2px;
+  padding: 1px 0;
 }
 
-.step-item-title {
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.step-title:empty::before {
+  content: 'Untitled step';
+  color: rgba(55, 53, 47, 0.15);
 }
 
-.step-item-desc {
-  font-size: 10px;
-  color: #666;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-style: italic;
-}
-
-.step-item-url {
-  font-size: 10px;
-  color: #aaa;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.step-item-thumb {
-  width: 40px;
-  height: 28px;
-  border-radius: 4px;
-  object-fit: cover;
-  border: 1px solid #e5e5e5;
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
-/* ── Preview Panel ────────────────────────────────────────────────────── */
-
-.preview-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.preview-empty {
-  flex: 1;
+.step-title-row {
   display: flex;
   align-items: center;
-  justify-content: center;
+  margin-bottom: 6px;
 }
 
-.preview-empty p {
+/* Step description — contentEditable paragraph */
+.step-desc {
+  font-size: 15px;
+  line-height: 1.7;
+  color: rgba(55, 53, 47, 0.8);
+  outline: none;
+  padding: 3px 0;
+  border-radius: 2px;
+  min-height: 1.7em;
+}
+
+.step-desc:empty::before {
+  content: 'Add a description...';
+  color: rgba(55, 53, 47, 0.15);
+}
+
+/* Step screenshot — full-width image block */
+.step-image-wrap {
+  position: relative;
+  margin: 10px 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: #f7f7f7;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+
+.step-image-wrap:hover {
+  box-shadow: 0 0 0 2px rgba(35, 131, 226, 0.35);
+}
+
+.step-image-wrap.selected {
+  box-shadow: 0 0 0 2px #2383e2;
+}
+
+.step-image {
+  width: 100%;
+  display: block;
+}
+
+.step-annotation-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Step meta — subtle URL / selector info */
+.step-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(55, 53, 47, 0.35);
+  padding: 4px 0;
+  align-items: center;
+}
+
+.step-meta-url {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Divider between steps */
+.step-divider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.06);
+  margin: 12px 0;
+}
+
+/* Empty state */
+.doc-empty {
+  padding: 60px 0;
+  text-align: center;
+}
+
+.doc-empty p {
   font-size: 14px;
-  color: #ccc;
+  color: rgba(55, 53, 47, 0.3);
 }
 
 .hidden {
   display: none !important;
 }
 
-.preview-content {
-  flex: 1;
+/* ── Floating Annotation Toolbar ─────────────────────────────────────── */
+
+.float-toolbar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-}
-
-/* ── Screenshot Preview ───────────────────────────────────────────────── */
-
-.preview-screenshot-wrap {
-  position: relative;
-  margin: 20px 20px 0;
+  gap: 2px;
+  padding: 6px 8px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 10px;
-  overflow: hidden;
-  border: 1px solid #e5e5e5;
-  background: #f9f9f9;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  z-index: 300;
+  animation: float-in 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
-.preview-screenshot {
-  width: 100%;
-  display: block;
+.float-toolbar.hidden { display: none !important; }
+
+@keyframes float-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
-.preview-annotation-canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  cursor: crosshair;
-}
-
-/* ── Preview Details ──────────────────────────────────────────────────── */
-
-.preview-details {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.preview-title-input {
-  font-size: 16px;
-  font-weight: 600;
-  border: none;
-  outline: none;
-  padding: 8px 0;
-  border-bottom: 1.5px solid transparent;
-  transition: border-color 0.15s;
-  color: #000;
-  background: transparent;
-}
-
-.preview-title-input:focus {
-  border-bottom-color: #000;
-}
-
-.preview-desc-input {
-  font-size: 13px;
-  line-height: 1.6;
-  border: 1.5px solid #e5e5e5;
-  border-radius: 6px;
-  padding: 10px 12px;
-  outline: none;
-  resize: vertical;
-  font-family: inherit;
-  color: #333;
-  transition: border-color 0.15s;
-}
-
-.preview-desc-input:focus {
-  border-color: #000;
-}
-
-.preview-meta {
-  display: flex;
-  gap: 16px;
-  font-size: 11px;
-  color: #aaa;
-}
-
-/* ── Annotation Toolbar ───────────────────────────────────────────────── */
-
-.annotation-toolbar {
-  display: flex;
-  gap: 4px;
-  padding: 12px 20px;
-  border-top: 1px solid #f0f0f0;
-}
-
-.anno-btn {
+.float-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1.5px solid #d4d4d4;
-  border-radius: 6px;
-  background: #fff;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
   cursor: pointer;
-  color: #666;
-  transition: all 0.15s;
+  color: rgba(55, 53, 47, 0.65);
+  transition: all 0.1s;
 }
 
-.anno-btn:hover {
-  border-color: #000;
-  color: #000;
+.float-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #191919;
 }
 
-.anno-btn.active {
-  background: #000;
-  border-color: #000;
+.float-btn.active {
+  background: #2383e2;
   color: #fff;
 }
 
-.anno-btn-wide {
-  width: auto;
-  padding: 0 10px;
-  gap: 5px;
-}
-
-.anno-btn-wide span {
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.anno-sep {
+.float-sep {
   width: 1px;
   height: 20px;
-  background: #e0e0e0;
-  margin: 0 4px;
+  background: rgba(0, 0, 0, 0.08);
+  margin: 7px 4px;
 }
 
-/* ── Comment Box Picker ──────────────────────────────────────────────── */
+/* ── Comment Box Picker (floating panel) ─────────────────────────────── */
 
 .commentbox-picker {
-  border-top: 1px solid #e5e5e5;
-  background: #fafafa;
+  position: fixed;
+  bottom: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  z-index: 350;
+  width: 440px;
   max-height: 340px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.commentbox-picker.hidden {
-  display: none;
-}
+.commentbox-picker.hidden { display: none; }
 
 .commentbox-picker-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .commentbox-picker-title {
   font-size: 12px;
   font-weight: 600;
-  color: #666;
+  color: rgba(55, 53, 47, 0.5);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -395,7 +507,7 @@ body {
 
 .commentbox-picker-close:hover {
   color: #000;
-  background: #eee;
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .commentbox-categories {
@@ -404,30 +516,29 @@ body {
   padding: 8px 12px;
   overflow-x: auto;
   flex-shrink: 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
 }
 
 .commentbox-cat-btn {
   padding: 5px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 20px;
   background: #fff;
   font-size: 11px;
   font-weight: 500;
-  color: #666;
+  color: rgba(55, 53, 47, 0.65);
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s;
+  transition: all 0.12s;
 }
 
 .commentbox-cat-btn:hover {
-  border-color: #000;
-  color: #000;
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .commentbox-cat-btn.active {
-  background: #000;
-  border-color: #000;
+  background: #2383e2;
+  border-color: #2383e2;
   color: #fff;
 }
 
@@ -449,18 +560,18 @@ body {
   border: 1.5px solid transparent;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.12s;
   background: #fff;
 }
 
 .commentbox-item:hover {
-  border-color: #d4d4d4;
-  background: #f5f5f5;
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.02);
 }
 
 .commentbox-item.active {
-  border-color: #007AFF;
-  background: #f0f7ff;
+  border-color: #2383e2;
+  background: rgba(35, 131, 226, 0.04);
 }
 
 .commentbox-preview-canvas {
@@ -471,7 +582,7 @@ body {
 .commentbox-item-label {
   font-size: 10px;
   font-weight: 500;
-  color: #888;
+  color: rgba(55, 53, 47, 0.5);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -485,37 +596,16 @@ body {
   position: absolute;
   display: none;
   background: transparent;
-  border: 2px solid #007AFF;
+  border: 2px solid #2383e2;
   border-radius: 4px;
   padding: 8px 10px;
   font-size: 13px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
-  color: #000;
+  font-family: inherit;
+  color: #191919;
   resize: none;
   outline: none;
   z-index: 10;
-  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
-}
-
-/* ── Generate Video Button ───────────────────────────────────────────── */
-
-.topbar-btn-video {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #000;
-  color: #fff;
-  border-color: #000;
-}
-
-.topbar-btn-video:hover {
-  background: #222;
-  border-color: #222;
-}
-
-.topbar-btn-video svg {
-  fill: #fff;
-  stroke: #fff;
+  box-shadow: 0 0 0 3px rgba(35, 131, 226, 0.15);
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -538,14 +628,14 @@ body {
   position: absolute;
   top: 0; left: 0;
   width: 100%; height: 100%;
-  background: rgba(0,0,0,0.4);
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .video-modal-content {
   position: relative;
   background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
   width: 600px;
   max-height: 85vh;
   overflow-y: auto;
@@ -562,7 +652,7 @@ body {
 .video-modal-header h3 {
   font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.02em;
 }
 
 .video-modal-x {
@@ -576,19 +666,15 @@ body {
   line-height: 1;
 }
 
-.video-modal-x:hover { color: #000; background: #f0f0f0; }
+.video-modal-x:hover { color: #000; background: rgba(0, 0, 0, 0.04); }
 
-/* ── Video Sections ──────────────────────────────────────────────────── */
-
-.video-section {
-  padding: 0 24px 16px;
-}
+.video-section { padding: 0 24px 16px; }
 
 .video-label {
   display: block;
   font-size: 11px;
   font-weight: 600;
-  color: #999;
+  color: rgba(55, 53, 47, 0.5);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 10px;
@@ -605,19 +691,19 @@ body {
 
 .cursor-cat-btn {
   padding: 4px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 20px;
   background: #fff;
   font-size: 11px;
   font-weight: 500;
-  color: #666;
+  color: rgba(55, 53, 47, 0.65);
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s;
+  transition: all 0.12s;
 }
 
-.cursor-cat-btn:hover { border-color: #000; color: #000; }
-.cursor-cat-btn.active { background: #000; border-color: #000; color: #fff; }
+.cursor-cat-btn:hover { background: rgba(0, 0, 0, 0.04); }
+.cursor-cat-btn.active { background: #2383e2; border-color: #2383e2; color: #fff; }
 
 .cursor-grid {
   display: grid;
@@ -637,22 +723,19 @@ body {
   border: 1.5px solid transparent;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.15s;
-  background: #fafafa;
+  transition: all 0.12s;
+  background: rgba(0, 0, 0, 0.02);
 }
 
-.cursor-item:hover { border-color: #d4d4d4; background: #f0f0f0; }
-.cursor-item.active { border-color: #007AFF; background: #f0f7ff; }
+.cursor-item:hover { border-color: rgba(0, 0, 0, 0.1); background: rgba(0, 0, 0, 0.04); }
+.cursor-item.active { border-color: #2383e2; background: rgba(35, 131, 226, 0.04); }
 
-.cursor-preview-canvas {
-  display: block;
-  border-radius: 4px;
-}
+.cursor-preview-canvas { display: block; border-radius: 4px; }
 
 .cursor-item-label {
   font-size: 9px;
   font-weight: 500;
-  color: #888;
+  color: rgba(55, 53, 47, 0.5);
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -677,67 +760,61 @@ body {
 .video-setting span {
   font-size: 12px;
   font-weight: 500;
-  color: #666;
+  color: rgba(55, 53, 47, 0.65);
 }
 
 .video-setting select {
   padding: 6px 10px;
-  border: 1.5px solid #d4d4d4;
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
-  color: #000;
+  color: #37352f;
   background: #fff;
   cursor: pointer;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.12s;
 }
 
-.video-setting select:focus { border-color: #000; }
+.video-setting select:focus { border-color: #2383e2; }
 
 /* ── Progress ────────────────────────────────────────────────────────── */
 
-.video-progress {
-  padding: 0 24px 16px;
-}
-
+.video-progress { padding: 0 24px 16px; }
 .video-progress.hidden { display: none; }
 
 .video-progress-bar {
   width: 100%;
-  height: 6px;
-  background: #f0f0f0;
-  border-radius: 3px;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 2px;
   overflow: hidden;
   margin-bottom: 6px;
 }
 
 .video-progress-fill {
   height: 100%;
-  background: #000;
-  border-radius: 3px;
+  background: #2383e2;
+  border-radius: 2px;
   width: 0%;
   transition: width 0.2s ease;
 }
 
 .video-progress-text {
   font-size: 12px;
-  color: #666;
+  color: rgba(55, 53, 47, 0.65);
   font-weight: 500;
 }
 
 /* ── Video Preview ───────────────────────────────────────────────────── */
 
-.video-preview {
-  padding: 0 24px 16px;
-}
-
+.video-preview { padding: 0 24px 16px; }
 .video-preview.hidden { display: none; }
 
 .video-preview video {
   width: 100%;
-  border-radius: 10px;
-  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
   background: #000;
 }
 
@@ -760,29 +837,27 @@ body {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.12s;
 }
 
 .video-btn-generate {
-  background: #000;
+  background: #2383e2;
   color: #fff;
   flex: 1;
   justify-content: center;
 }
 
-.video-btn-generate:hover { background: #222; }
+.video-btn-generate:hover { background: #1b6ec2; }
 .video-btn-generate.hidden { display: none; }
-
 .video-btn-generate svg { stroke: #fff; }
 
 .video-btn-download {
-  background: #007AFF;
+  background: #0f7b3f;
   color: #fff;
   flex: 1;
   justify-content: center;
 }
 
-.video-btn-download:hover { background: #0066dd; }
+.video-btn-download:hover { background: #0a5f30; }
 .video-btn-download.hidden { display: none; }
-
 .video-btn-download svg { stroke: #fff; }
