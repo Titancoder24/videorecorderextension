@@ -274,6 +274,10 @@
           const res = await chrome.runtime.sendMessage({ type: 'capture-screenshot' });
           if (res?.dataUrl) {
             croppedScreenshot = await cropScreenshot(res.dataUrl, rect, window.innerWidth, window.innerHeight);
+            // Keep screenshots under 200KB to prevent storage bloat
+            if (croppedScreenshot && croppedScreenshot.length > 200000) {
+              croppedScreenshot = await recompressScreenshot(croppedScreenshot, 0.65);
+            }
           }
         } catch (err) {
           console.warn('[Clarity] Screenshot capture failed:', err);
@@ -302,7 +306,7 @@
           },
           elementText: target.textContent?.trim().slice(0, 100) || '',
           tagName: target.tagName.toLowerCase(),
-          screenshot: croppedScreenshot,
+          screenshot: null,
           croppedScreenshot,
           highlightColor,
           timestamp: Date.now(),
@@ -310,6 +314,13 @@
           description: comment || '',
           annotations: [],
         };
+
+        console.log(`[Clarity] Saving step #${stepCount}:`, {
+          title,
+          description: comment || '(empty)',
+          hasScreenshot: !!croppedScreenshot,
+          screenshotSize: croppedScreenshot ? Math.round(croppedScreenshot.length / 1024) + 'KB' : 'none',
+        });
 
         const addRes = await chrome.runtime.sendMessage({
           type: 'add-step',
@@ -319,10 +330,12 @@
 
         if (addRes?.error) {
           console.error('[Clarity] Failed to save step:', addRes.error);
+          showStepCountToast(stepCount, true); // show error toast
+        } else {
+          console.log('[Clarity] Step saved successfully, total:', addRes.stepCount);
+          // Show toast
+          showStepCountToast(stepCount);
         }
-
-        // Show toast
-        showStepCountToast(stepCount);
       } catch (err) {
         console.error('[Clarity] Step capture error:', err);
       } finally {
@@ -566,6 +579,25 @@
     });
   }
 
+  function recompressScreenshot(dataUrl, quality) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        // Also scale down if too large
+        const maxDim = 900;
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
   function roundRect(ctx, x, y, w, h, r) {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -620,19 +652,25 @@
   }
 
   // Show step count toast in corner
-  function showStepCountToast(count) {
+  function showStepCountToast(count, isError) {
     let toast = document.getElementById('clarity-step-toast');
     if (!toast) {
       toast = document.createElement('div');
       toast.id = 'clarity-step-toast';
       document.body.appendChild(toast);
     }
-    toast.textContent = `Step ${count} captured`;
+    if (isError) {
+      toast.textContent = `Step ${count} — save failed!`;
+      toast.style.background = '#FF3B30';
+    } else {
+      toast.textContent = `Step ${count} captured`;
+      toast.style.background = '';
+    }
     toast.className = 'clarity-step-toast show';
     clearTimeout(toast._hideTimer);
     toast._hideTimer = setTimeout(() => {
       toast.className = 'clarity-step-toast';
-    }, 1500);
+    }, isError ? 3000 : 1500);
   }
 
   // ── Inline Comment Input (appears on page after each click) ────────────

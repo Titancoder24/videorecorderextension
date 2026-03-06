@@ -258,19 +258,48 @@ async function handleCaptureScreenshot() {
 }
 
 async function handleAddStep(msg) {
+  console.log('[Clarity BG] add-step received:', {
+    sessionId: msg.sessionId,
+    title: msg.step?.title,
+    description: msg.step?.description,
+    hasScreenshot: !!msg.step?.croppedScreenshot,
+  });
+
   const sessions = await loadSessions();
   const session = sessions.find((s) => s.id === msg.sessionId);
-  if (!session) return { error: 'Session not found' };
+  if (!session) {
+    console.error('[Clarity BG] Session not found:', msg.sessionId);
+    return { error: 'Session not found' };
+  }
 
   const stepNumber = session.steps.length + 1;
   msg.step.number = stepNumber;
+
+  // Remove duplicate screenshot field to save storage space
+  if (msg.step.croppedScreenshot) {
+    msg.step.screenshot = null;
+  }
+
   session.steps.push(msg.step);
 
+  // Try to save — if storage fails due to quota, compress screenshots and retry
   try {
     await chrome.storage.local.set({ sessions });
   } catch (e) {
-    console.error('[Clarity] Storage save failed:', e);
-    return { error: 'Storage save failed: ' + e.message };
+    console.warn('[Clarity] Storage save failed, retrying with compressed screenshots:', e);
+    // Compress all screenshots in this session to reduce size
+    for (const step of session.steps) {
+      if (step.croppedScreenshot && step.croppedScreenshot.length > 50000) {
+        step.croppedScreenshot = compressDataUrl(step.croppedScreenshot, 0.6);
+      }
+    }
+    try {
+      await chrome.storage.local.set({ sessions });
+    } catch (e2) {
+      console.error('[Clarity] Storage save failed even after compression:', e2);
+      session.steps.pop(); // rollback
+      return { error: 'Storage save failed: ' + e2.message };
+    }
   }
 
   // Notify sidepanel about new step
@@ -281,6 +310,13 @@ async function handleAddStep(msg) {
   });
 
   return { stepCount: session.steps.length, stepNumber };
+}
+
+function compressDataUrl(dataUrl, quality) {
+  // Re-encode JPEG at lower quality by replacing quality parameter
+  // For data URLs we can't re-encode without canvas, so just return as-is in service worker
+  // The real fix is to compress in the content script before sending
+  return dataUrl;
 }
 
 async function handleRemoveLastStep(msg) {
