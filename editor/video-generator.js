@@ -354,7 +354,6 @@ async function generateVideoFromSteps(session, options = {}) {
 
   const framesPerMs = fps / 1000;
   const totalSteps = steps.length;
-  const cursorTrail = []; // for trail cursor style
 
   // Start position (center of screen)
   let cursorX = width / 2;
@@ -383,7 +382,7 @@ async function generateVideoFromSteps(session, options = {}) {
       cursorX = startX + (targetX - startX) * e;
       cursorY = startY + (targetY - startY) * e;
 
-      renderFrame(ctx, img, width, height, cursorX, cursorY, cursorStyle, 1, 0, 0, step, cursorTrail, f / fps);
+      renderFrame(ctx, img, width, height, cursorX, cursorY, cursorStyle, 1, 0, 0, step, f / fps);
       await waitFrame();
 
       onProgress((si + t * 0.2) / totalSteps);
@@ -398,10 +397,11 @@ async function generateVideoFromSteps(session, options = {}) {
       const t = f / zoomInFrames;
       const e = easeOutQuart(t);
       const currentZoom = 1 + (zoomLevel - 1) * e;
-      const rippleRadius = t * 40;
+      // Ripple starts at radius 8 so it's visible from the first frame
+      const rippleRadius = 8 + t * 32;
       const rippleAlpha = 1 - t;
 
-      renderFrame(ctx, img, width, height, cursorX, cursorY, cursorStyle, currentZoom, rippleRadius, rippleAlpha, step, cursorTrail, f / fps);
+      renderFrame(ctx, img, width, height, cursorX, cursorY, cursorStyle, currentZoom, rippleRadius, rippleAlpha, step, f / fps);
       await waitFrame();
 
       onProgress((si + 0.2 + t * 0.2) / totalSteps);
@@ -410,7 +410,7 @@ async function generateVideoFromSteps(session, options = {}) {
     // Phase 3: Hold at zoom
     const holdFrames = Math.round(stepDuration * framesPerMs);
     for (let f = 0; f < holdFrames; f++) {
-      renderFrame(ctx, img, width, height, cursorX, cursorY, cursorStyle, zoomLevel, 0, 0, step, cursorTrail, f / fps);
+      renderFrame(ctx, img, width, height, cursorX, cursorY, cursorStyle, zoomLevel, 0, 0, step, f / fps);
       await waitFrame();
 
       onProgress((si + 0.4 + (f / holdFrames) * 0.4) / totalSteps);
@@ -423,7 +423,7 @@ async function generateVideoFromSteps(session, options = {}) {
       const e = easeOutQuart(t);
       const currentZoom = zoomLevel - (zoomLevel - 1) * e;
 
-      renderFrame(ctx, img, width, height, cursorX, cursorY, cursorStyle, currentZoom, 0, 0, step, cursorTrail, f / fps);
+      renderFrame(ctx, img, width, height, cursorX, cursorY, cursorStyle, currentZoom, 0, 0, step, f / fps);
       await waitFrame();
 
       onProgress((si + 0.8 + t * 0.2) / totalSteps);
@@ -434,7 +434,7 @@ async function generateVideoFromSteps(session, options = {}) {
   const lastImg = images[images.length - 1];
   const endHoldFrames = Math.round(1000 * framesPerMs);
   for (let f = 0; f < endHoldFrames; f++) {
-    renderFrame(ctx, lastImg, width, height, cursorX, cursorY, cursorStyle, 1, 0, 0, steps[steps.length - 1], cursorTrail, f / fps);
+    renderFrame(ctx, lastImg, width, height, cursorX, cursorY, cursorStyle, 1, 0, 0, steps[steps.length - 1], f / fps);
     await waitFrame();
   }
 
@@ -446,7 +446,7 @@ async function generateVideoFromSteps(session, options = {}) {
 
 // ── Frame Renderer ──────────────────────────────────────────────────────
 
-function renderFrame(ctx, img, w, h, cx, cy, cursorStyle, zoom, rippleR, rippleA, step, trail, time) {
+function renderFrame(ctx, img, w, h, cx, cy, cursorStyle, zoom, rippleR, rippleA, step, time) {
   ctx.save();
   ctx.clearRect(0, 0, w, h);
 
@@ -514,34 +514,24 @@ function renderFrame(ctx, img, w, h, cx, cy, cursorStyle, zoom, rippleR, rippleA
 
   ctx.restore();
 
-  // Draw click ripple (unzoomed, on top)
+  // Draw click ripple (unzoomed, on top) — two rings for smooth visibility
   if (rippleR > 0 && rippleA > 0) {
+    const color = step?.highlightColor || '#FF2D55';
     ctx.save();
-    ctx.strokeStyle = (step?.highlightColor || '#FF2D55');
+    // Outer ring
+    ctx.strokeStyle = color;
     ctx.lineWidth = 2.5;
-    ctx.globalAlpha = rippleA;
+    ctx.globalAlpha = rippleA * 0.8;
     ctx.beginPath();
     ctx.arc(cx, cy, rippleR, 0, Math.PI * 2);
     ctx.stroke();
+    // Inner filled circle fading out
+    ctx.globalAlpha = rippleA * 0.15;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, rippleR, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
-  }
-
-  // Draw cursor trail
-  if (cursorStyle.trail && trail) {
-    trail.push({ x: cx, y: cy, t: time });
-    // Keep last 20 trail points
-    while (trail.length > 20) trail.shift();
-    for (let i = 0; i < trail.length - 1; i++) {
-      const p = trail[i];
-      const alpha = (i + 1) / trail.length * 0.4;
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = cursorStyle.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, cursorStyle.size / 2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
   }
 
   // Draw cursor (unzoomed, on top of everything)
