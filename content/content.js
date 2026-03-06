@@ -265,7 +265,7 @@
         showCapturePulse(e.clientX, e.clientY);
         showCaptureConfetti(e.clientX, e.clientY);
 
-        // Capture screenshot
+        // Capture screenshot BEFORE showing comment input (clean screenshot)
         let croppedScreenshot = null;
         try {
           const res = await chrome.runtime.sendMessage({ type: 'capture-screenshot' });
@@ -278,6 +278,9 @@
 
         // Smart title generation
         const title = generateSmartTitle(target);
+
+        // Show inline comment input and wait for user to type + confirm
+        const comment = await showInlineCommentInput(rect, stepCount + 1);
 
         stepCount++;
 
@@ -301,7 +304,7 @@
           highlightColor,
           timestamp: Date.now(),
           title,
-          description: '',
+          description: comment || '',
           annotations: [],
         };
 
@@ -504,7 +507,8 @@
            el.closest('#clarity-hover-highlight') ||
            el.closest('.clarity-step-badge') ||
            el.closest('.clarity-element-highlight') ||
-           el.closest('.clarity-badge-connector');
+           el.closest('.clarity-badge-connector') ||
+           el.closest('.clarity-comment-input');
   }
 
   // ── Cropped Screenshot (high quality, for side panel thumbnail) ─────
@@ -624,6 +628,86 @@
     toast._hideTimer = setTimeout(() => {
       toast.className = 'clarity-step-toast';
     }, 1500);
+  }
+
+  // ── Inline Comment Input (appears on page after each click) ────────────
+
+  function showInlineCommentInput(elementRect, stepNumber) {
+    return new Promise((resolve) => {
+      // Remove any existing comment input
+      const existing = document.getElementById('clarity-comment-input-wrap');
+      if (existing) existing.remove();
+
+      const wrap = document.createElement('div');
+      wrap.id = 'clarity-comment-input-wrap';
+      wrap.className = 'clarity-comment-input';
+
+      // Position below the element, or above if no space below
+      const spaceBelow = window.innerHeight - (elementRect.top + elementRect.height);
+      const posTop = spaceBelow > 120
+        ? elementRect.top + elementRect.height + 8
+        : elementRect.top - 108;
+      const posLeft = Math.max(8, Math.min(elementRect.left, window.innerWidth - 308));
+
+      wrap.style.top = posTop + 'px';
+      wrap.style.left = posLeft + 'px';
+
+      wrap.innerHTML = `
+        <div class="clarity-comment-header">
+          <span class="clarity-comment-badge">${stepNumber}</span>
+          <span class="clarity-comment-label">Add a comment</span>
+        </div>
+        <textarea class="clarity-comment-textarea" id="clarity-comment-textarea"
+          placeholder="Describe this step... (Enter to save, Esc to skip)"
+          rows="2"></textarea>
+        <div class="clarity-comment-actions">
+          <button class="clarity-comment-skip" id="clarity-comment-skip">Skip</button>
+          <button class="clarity-comment-save" id="clarity-comment-save">Save</button>
+        </div>
+      `;
+
+      document.body.appendChild(wrap);
+
+      const textarea = document.getElementById('clarity-comment-textarea');
+      const saveBtn = document.getElementById('clarity-comment-save');
+      const skipBtn = document.getElementById('clarity-comment-skip');
+
+      // Focus after a frame so click event doesn't interfere
+      requestAnimationFrame(() => textarea.focus());
+
+      let resolved = false;
+      function finish(text) {
+        if (resolved) return;
+        resolved = true;
+        wrap.classList.add('clarity-comment-exit');
+        setTimeout(() => wrap.remove(), 200);
+        resolve(text || '');
+      }
+
+      saveBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        finish(textarea.value.trim());
+      });
+
+      skipBtn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        finish('');
+      });
+
+      textarea.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' && !ev.shiftKey) {
+          ev.preventDefault();
+          finish(textarea.value.trim());
+        }
+        if (ev.key === 'Escape') {
+          ev.preventDefault();
+          finish('');
+        }
+      });
+
+      // Auto-dismiss after 15s if user ignores it
+      setTimeout(() => finish(textarea.value.trim()), 15000);
+    });
   }
 
   // ══════════════════════════════════════════════════════════════════════════

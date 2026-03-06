@@ -357,3 +357,121 @@
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   INLINE COMMENT INPUT — appears on page after each click during capture
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.clarity-comment-input {
+  position: fixed;
+  z-index: 2147483647;
+  width: 300px;
+  background: #fff;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  animation: clarity-comment-in 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  overflow: hidden;
+}
+
+.clarity-comment-input.clarity-comment-exit {
+  animation: clarity-comment-out 0.2s ease-in forwards;
+}
+
+@keyframes clarity-comment-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes clarity-comment-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.95); }
+}
+
+.clarity-comment-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 0;
+}
+
+.clarity-comment-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--clarity-highlight-color, #FF2D55);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.clarity-comment-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+}
+
+.clarity-comment-textarea {
+  display: block;
+  width: calc(100% - 28px);
+  margin: 8px 14px;
+  padding: 8px 10px;
+  border: 1.5px solid #e5e5e5;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #000;
+  background: #fafafa;
+  resize: none;
+  outline: none;
+  transition: border-color 0.15s;
+  line-height: 1.5;
+}
+
+.clarity-comment-textarea:focus {
+  border-color: var(--clarity-highlight-color, #FF2D55);
+  background: #fff;
+}
+
+.clarity-comment-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 0 14px 10px;
+}
+
+.clarity-comment-skip,
+.clarity-comment-save {
+  padding: 5px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.clarity-comment-skip {
+  background: transparent;
+  color: #999;
+}
+
+.clarity-comment-skip:hover {
+  color: #333;
+  background: #f0f0f0;
+}
+
+.clarity-comment-save {
+  background: #000;
+  color: #fff;
+}
+
+.clarity-comment-save:hover {
+  background: #222;
+}

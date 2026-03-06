@@ -116,6 +116,15 @@
 
     // Global key handler for comment box text editing
     document.addEventListener('keydown', onCommentBoxKeydown);
+
+    // Video generator
+    document.getElementById('btn-generate-video').addEventListener('click', openVideoModal);
+    document.getElementById('video-modal-close').addEventListener('click', closeVideoModal);
+    document.getElementById('video-modal-x').addEventListener('click', closeVideoModal);
+    document.getElementById('btn-do-generate').addEventListener('click', startVideoGeneration);
+    document.getElementById('btn-download-video').addEventListener('click', downloadGeneratedVideo);
+
+    initCursorPicker();
   }
 
   // ── Step List Rendering ─────────────────────────────────────────────────
@@ -589,6 +598,140 @@
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(String(number), x, y);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // VIDEO GENERATOR UI
+  // ══════════════════════════════════════════════════════════════════════════
+
+  let selectedCursorId = 'default';
+  let generatedVideoBlob = null;
+
+  function initCursorPicker() {
+    const categories = getCursorCategories();
+    const catContainer = document.getElementById('cursor-categories');
+
+    catContainer.innerHTML = '';
+    categories.forEach((cat, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'cursor-cat-btn' + (i === 0 ? ' active' : '');
+      btn.textContent = cat;
+      btn.addEventListener('click', () => {
+        catContainer.querySelectorAll('.cursor-cat-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderCursorGrid(cat);
+      });
+      catContainer.appendChild(btn);
+    });
+
+    renderCursorGrid(categories[0]);
+  }
+
+  function renderCursorGrid(category) {
+    const grid = document.getElementById('cursor-grid');
+    const cursors = getCursorsByCategory(category);
+    grid.innerHTML = '';
+
+    for (const cursor of cursors) {
+      const item = document.createElement('div');
+      item.className = 'cursor-item' + (selectedCursorId === cursor.id ? ' active' : '');
+      item.title = cursor.name;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 60;
+      canvas.height = 50;
+      canvas.className = 'cursor-preview-canvas';
+      drawCursorPreview(canvas, cursor);
+
+      const label = document.createElement('span');
+      label.className = 'cursor-item-label';
+      label.textContent = cursor.name;
+
+      item.appendChild(canvas);
+      item.appendChild(label);
+
+      item.addEventListener('click', () => {
+        selectedCursorId = cursor.id;
+        grid.querySelectorAll('.cursor-item').forEach((el) => el.classList.remove('active'));
+        item.classList.add('active');
+      });
+
+      grid.appendChild(item);
+    }
+  }
+
+  function openVideoModal() {
+    document.getElementById('video-modal').classList.remove('hidden');
+    document.getElementById('video-progress').classList.add('hidden');
+    document.getElementById('video-preview').classList.add('hidden');
+    document.getElementById('btn-download-video').classList.add('hidden');
+    document.getElementById('btn-do-generate').classList.remove('hidden');
+    generatedVideoBlob = null;
+  }
+
+  function closeVideoModal() {
+    document.getElementById('video-modal').classList.add('hidden');
+    // Revoke any object URLs
+    const video = document.getElementById('video-result');
+    if (video.src) { URL.revokeObjectURL(video.src); video.src = ''; }
+  }
+
+  async function startVideoGeneration() {
+    if (!session?.steps?.length) return;
+
+    const resVal = document.getElementById('video-resolution').value.split('x');
+    const width = parseInt(resVal[0]);
+    const height = parseInt(resVal[1]);
+    const fps = parseInt(document.getElementById('video-fps').value);
+    const stepDuration = parseInt(document.getElementById('video-step-duration').value);
+    const zoomLevel = parseFloat(document.getElementById('video-zoom').value);
+
+    // Show progress
+    document.getElementById('video-progress').classList.remove('hidden');
+    document.getElementById('btn-do-generate').classList.add('hidden');
+    document.getElementById('video-preview').classList.add('hidden');
+    document.getElementById('btn-download-video').classList.add('hidden');
+
+    const progressFill = document.getElementById('video-progress-fill');
+    const progressText = document.getElementById('video-progress-text');
+
+    try {
+      generatedVideoBlob = await generateVideoFromSteps(session, {
+        cursorStyleId: selectedCursorId,
+        width,
+        height,
+        fps,
+        stepDuration,
+        zoomLevel,
+        onProgress: (p) => {
+          const pct = Math.round(p * 100);
+          progressFill.style.width = pct + '%';
+          progressText.textContent = `Generating... ${pct}%`;
+        },
+      });
+
+      // Show preview
+      const video = document.getElementById('video-result');
+      video.src = URL.createObjectURL(generatedVideoBlob);
+      document.getElementById('video-preview').classList.remove('hidden');
+      document.getElementById('btn-download-video').classList.remove('hidden');
+      progressText.textContent = 'Done!';
+    } catch (err) {
+      console.error('[Clarity] Video generation failed:', err);
+      progressText.textContent = 'Failed: ' + err.message;
+      document.getElementById('btn-do-generate').classList.remove('hidden');
+    }
+  }
+
+  function downloadGeneratedVideo() {
+    if (!generatedVideoBlob) return;
+    const url = URL.createObjectURL(generatedVideoBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${session.title || 'clarity-guide'}-video.webm`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 100);
   }
 
   // ── Storage ─────────────────────────────────────────────────────────────
