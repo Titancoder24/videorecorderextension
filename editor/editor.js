@@ -12,12 +12,17 @@
   let annotationStart = null;
   let exporter = null;
 
+  // Comment box state
+  let selectedCommentBoxTemplate = null;
+  let activeCommentBoxIndex = -1; // which comment box is being text-edited
+  let draggingCommentBox = null; // { index, offsetX, offsetY }
+  let commentBoxNumberCounter = 1;
+
   // ── Init ────────────────────────────────────────────────────────────────
 
   document.addEventListener('DOMContentLoaded', async () => {
     exporter = new ClarityExporter();
 
-    // Load session from URL params or storage
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get('session');
 
@@ -28,7 +33,6 @@
     }
 
     if (!session) {
-      // Load most recent guide session
       const data = await chrome.storage.local.get('sessions');
       const sessions = data.sessions || [];
       session = sessions.find((s) => s.type === 'guide');
@@ -41,6 +45,7 @@
     }
 
     bindEvents();
+    initCommentBoxPicker();
   });
 
   // ── Event Binding ───────────────────────────────────────────────────────
@@ -78,6 +83,16 @@
     document.querySelectorAll('.anno-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         const tool = btn.dataset.tool;
+        if (!tool) return;
+
+        if (tool === 'commentbox') {
+          toggleCommentBoxPicker();
+          return;
+        }
+
+        // Close comment picker if open
+        closeCommentBoxPicker();
+
         if (annotationTool === tool) {
           annotationTool = null;
           btn.classList.remove('active');
@@ -94,6 +109,13 @@
     canvas.addEventListener('mousedown', onAnnotationStart);
     canvas.addEventListener('mousemove', onAnnotationMove);
     canvas.addEventListener('mouseup', onAnnotationEnd);
+    canvas.addEventListener('dblclick', onAnnotationDblClick);
+
+    // Comment box picker close
+    document.getElementById('commentbox-picker-close').addEventListener('click', closeCommentBoxPicker);
+
+    // Global key handler for comment box text editing
+    document.addEventListener('keydown', onCommentBoxKeydown);
   }
 
   // ── Step List Rendering ─────────────────────────────────────────────────
@@ -125,6 +147,7 @@
 
   function selectStep(index) {
     selectedStepIndex = index;
+    activeCommentBoxIndex = -1;
     const step = session.steps[index];
 
     document.getElementById('preview-empty').classList.add('hidden');
@@ -150,61 +173,313 @@
     canvas.width = wrap.offsetWidth;
     canvas.height = wrap.offsetHeight;
 
-    // Redraw annotations for this step
+    // Count existing numbered comment boxes for counter
+    commentBoxNumberCounter = 1;
+    if (step.annotations) {
+      for (const a of step.annotations) {
+        if (a.type === 'commentbox' && a.templateId) {
+          const t = getCommentBoxTemplate(a.templateId);
+          if (t?.numbered && a.number >= commentBoxNumberCounter) {
+            commentBoxNumberCounter = a.number + 1;
+          }
+        }
+      }
+    }
+
     redrawStepAnnotations();
     renderStepList();
   }
 
-  // ── Annotations ─────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  // COMMENT BOX PICKER
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function initCommentBoxPicker() {
+    const categories = getCommentBoxCategories();
+    const catContainer = document.getElementById('commentbox-categories');
+    const gridContainer = document.getElementById('commentbox-grid');
+
+    // Render category tabs
+    catContainer.innerHTML = '';
+    categories.forEach((cat, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'commentbox-cat-btn' + (i === 0 ? ' active' : '');
+      btn.textContent = cat;
+      btn.addEventListener('click', () => {
+        catContainer.querySelectorAll('.commentbox-cat-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderCommentBoxGrid(cat);
+      });
+      catContainer.appendChild(btn);
+    });
+
+    // Render first category
+    renderCommentBoxGrid(categories[0]);
+  }
+
+  function renderCommentBoxGrid(category) {
+    const grid = document.getElementById('commentbox-grid');
+    const templates = getCommentBoxesByCategory(category);
+    grid.innerHTML = '';
+
+    for (const template of templates) {
+      const item = document.createElement('div');
+      item.className = 'commentbox-item' + (selectedCommentBoxTemplate?.id === template.id ? ' active' : '');
+      item.title = template.name;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 100;
+      canvas.height = 60;
+      canvas.className = 'commentbox-preview-canvas';
+      drawCommentBoxPreview(canvas, template);
+
+      const label = document.createElement('span');
+      label.className = 'commentbox-item-label';
+      label.textContent = template.name;
+
+      item.appendChild(canvas);
+      item.appendChild(label);
+
+      item.addEventListener('click', () => {
+        selectedCommentBoxTemplate = template;
+        annotationTool = 'commentbox';
+
+        // Update active states
+        grid.querySelectorAll('.commentbox-item').forEach((el) => el.classList.remove('active'));
+        item.classList.add('active');
+        document.querySelectorAll('.anno-btn').forEach((b) => b.classList.remove('active'));
+        document.getElementById('btn-commentbox').classList.add('active');
+
+        // Set canvas cursor
+        const annoCanvas = document.getElementById('preview-annotation-canvas');
+        annoCanvas.style.cursor = 'crosshair';
+      });
+
+      grid.appendChild(item);
+    }
+  }
+
+  function toggleCommentBoxPicker() {
+    const picker = document.getElementById('commentbox-picker');
+    if (picker.classList.contains('hidden')) {
+      picker.classList.remove('hidden');
+      document.getElementById('btn-commentbox').classList.add('active');
+    } else {
+      closeCommentBoxPicker();
+    }
+  }
+
+  function closeCommentBoxPicker() {
+    document.getElementById('commentbox-picker').classList.add('hidden');
+    if (annotationTool === 'commentbox' && !selectedCommentBoxTemplate) {
+      document.getElementById('btn-commentbox').classList.remove('active');
+      annotationTool = null;
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ANNOTATIONS
+  // ══════════════════════════════════════════════════════════════════════════
 
   function onAnnotationStart(e) {
-    if (!annotationTool) return;
-    const rect = e.target.getBoundingClientRect();
-    annotationStart = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    };
+    if (!annotationTool) {
+      // Check if clicking on existing comment box for dragging
+      const pos = getCanvasPos(e);
+      const step = session?.steps?.[selectedStepIndex];
+      if (step?.annotations) {
+        for (let i = step.annotations.length - 1; i >= 0; i--) {
+          const a = step.annotations[i];
+          if (a.type === 'commentbox' && isInsideBox(pos.x, pos.y, a)) {
+            draggingCommentBox = {
+              index: i,
+              offsetX: pos.x - a.startX,
+              offsetY: pos.y - a.startY,
+            };
+            return;
+          }
+        }
+      }
+      return;
+    }
+
+    const pos = getCanvasPos(e);
+    annotationStart = { x: pos.x, y: pos.y };
   }
 
   function onAnnotationMove(e) {
+    // Handle dragging
+    if (draggingCommentBox) {
+      const pos = getCanvasPos(e);
+      const step = session.steps[selectedStepIndex];
+      const a = step.annotations[draggingCommentBox.index];
+      const dx = pos.x - draggingCommentBox.offsetX - a.startX;
+      const dy = pos.y - draggingCommentBox.offsetY - a.startY;
+      a.startX += dx;
+      a.startY += dy;
+      a.endX += dx;
+      a.endY += dy;
+      draggingCommentBox.offsetX = pos.x - a.startX;
+      draggingCommentBox.offsetY = pos.y - a.startY;
+      redrawStepAnnotations();
+      return;
+    }
+
     if (!annotationStart || !annotationTool) return;
     const canvas = document.getElementById('preview-annotation-canvas');
     const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const pos = getCanvasPos(e);
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     redrawStepAnnotations(ctx);
 
     if (annotationTool === 'arrow') {
-      drawArrow(ctx, annotationStart.x, annotationStart.y, x, y);
+      drawArrow(ctx, annotationStart.x, annotationStart.y, pos.x, pos.y);
     } else if (annotationTool === 'highlight') {
-      drawHighlight(ctx, annotationStart.x, annotationStart.y, x, y);
+      drawHighlight(ctx, annotationStart.x, annotationStart.y, pos.x, pos.y);
+    } else if (annotationTool === 'commentbox' && selectedCommentBoxTemplate) {
+      const x = Math.min(annotationStart.x, pos.x);
+      const y = Math.min(annotationStart.y, pos.y);
+      const w = Math.abs(pos.x - annotationStart.x);
+      const h = Math.abs(pos.y - annotationStart.y);
+      if (w > 5 && h > 5) {
+        drawCommentBox(ctx, selectedCommentBoxTemplate, x, y, w, h, 'Type here...', { number: commentBoxNumberCounter });
+      }
     }
   }
 
   function onAnnotationEnd(e) {
+    // End drag
+    if (draggingCommentBox) {
+      draggingCommentBox = null;
+      saveSession();
+      return;
+    }
+
     if (!annotationStart || !annotationTool) return;
-    const canvas = document.getElementById('preview-annotation-canvas');
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const pos = getCanvasPos(e);
 
     const step = session.steps[selectedStepIndex];
     if (!step.annotations) step.annotations = [];
 
-    step.annotations.push({
-      type: annotationTool,
-      startX: annotationStart.x,
-      startY: annotationStart.y,
-      endX: x,
-      endY: y,
-    });
+    if (annotationTool === 'commentbox' && selectedCommentBoxTemplate) {
+      const x = Math.min(annotationStart.x, pos.x);
+      const y = Math.min(annotationStart.y, pos.y);
+      const w = Math.abs(pos.x - annotationStart.x);
+      const h = Math.abs(pos.y - annotationStart.y);
+
+      if (w > 10 && h > 10) {
+        const anno = {
+          type: 'commentbox',
+          templateId: selectedCommentBoxTemplate.id,
+          startX: x,
+          startY: y,
+          endX: x + w,
+          endY: y + h,
+          text: selectedCommentBoxTemplate.numbered ? '' : 'Type here...',
+          number: selectedCommentBoxTemplate.numbered ? commentBoxNumberCounter++ : undefined,
+        };
+        step.annotations.push(anno);
+        activeCommentBoxIndex = step.annotations.length - 1;
+      }
+    } else {
+      step.annotations.push({
+        type: annotationTool,
+        startX: annotationStart.x,
+        startY: annotationStart.y,
+        endX: pos.x,
+        endY: pos.y,
+      });
+    }
 
     saveSession();
     annotationStart = null;
     redrawStepAnnotations();
+  }
+
+  function onAnnotationDblClick(e) {
+    // Double-click to edit comment box text
+    const pos = getCanvasPos(e);
+    const step = session?.steps?.[selectedStepIndex];
+    if (!step?.annotations) return;
+
+    for (let i = step.annotations.length - 1; i >= 0; i--) {
+      const a = step.annotations[i];
+      if (a.type === 'commentbox' && isInsideBox(pos.x, pos.y, a)) {
+        activeCommentBoxIndex = i;
+        showCommentBoxTextInput(a);
+        return;
+      }
+    }
+  }
+
+  function onCommentBoxKeydown(e) {
+    // Delete active comment box with Delete/Backspace when no input focused
+    if ((e.key === 'Delete' || e.key === 'Backspace') && activeCommentBoxIndex >= 0) {
+      const active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+
+      const step = session?.steps?.[selectedStepIndex];
+      if (step?.annotations?.[activeCommentBoxIndex]) {
+        step.annotations.splice(activeCommentBoxIndex, 1);
+        activeCommentBoxIndex = -1;
+        saveSession();
+        redrawStepAnnotations();
+      }
+    }
+
+    // Escape to deselect
+    if (e.key === 'Escape') {
+      activeCommentBoxIndex = -1;
+      hideCommentBoxTextInput();
+      redrawStepAnnotations();
+    }
+  }
+
+  function showCommentBoxTextInput(annotation) {
+    let input = document.getElementById('commentbox-text-input');
+    if (!input) {
+      input = document.createElement('textarea');
+      input.id = 'commentbox-text-input';
+      input.className = 'commentbox-text-input';
+      document.querySelector('.preview-screenshot-wrap').appendChild(input);
+    }
+
+    input.value = annotation.text || '';
+    input.style.display = 'block';
+    input.style.left = annotation.startX + 'px';
+    input.style.top = annotation.startY + 'px';
+    input.style.width = (annotation.endX - annotation.startX) + 'px';
+    input.style.height = (annotation.endY - annotation.startY) + 'px';
+    input.focus();
+
+    input.oninput = () => {
+      annotation.text = input.value;
+      saveSession();
+      redrawStepAnnotations();
+    };
+
+    input.onblur = () => {
+      hideCommentBoxTextInput();
+    };
+  }
+
+  function hideCommentBoxTextInput() {
+    const input = document.getElementById('commentbox-text-input');
+    if (input) input.style.display = 'none';
+  }
+
+  function isInsideBox(x, y, annotation) {
+    return x >= annotation.startX && x <= annotation.endX &&
+           y >= annotation.startY && y <= annotation.endY;
+  }
+
+  function getCanvasPos(e) {
+    const canvas = document.getElementById('preview-annotation-canvas');
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
   }
 
   function redrawStepAnnotations(ctx) {
@@ -215,7 +490,8 @@
     const step = session?.steps?.[selectedStepIndex];
     if (!step?.annotations) return;
 
-    for (const a of step.annotations) {
+    for (let i = 0; i < step.annotations.length; i++) {
+      const a = step.annotations[i];
       if (a.type === 'arrow') {
         drawArrow(ctx, a.startX, a.startY, a.endX, a.endY);
       } else if (a.type === 'highlight') {
@@ -224,6 +500,24 @@
         drawBlur(ctx, a.startX, a.startY, a.endX, a.endY);
       } else if (a.type === 'number') {
         drawNumberBadge(ctx, a.startX, a.startY, a.number || 1);
+      } else if (a.type === 'commentbox') {
+        const template = getCommentBoxTemplate(a.templateId);
+        if (template) {
+          const w = a.endX - a.startX;
+          const h = a.endY - a.startY;
+          drawCommentBox(ctx, template, a.startX, a.startY, w, h, a.text || '', { number: a.number });
+
+          // Draw selection border if active
+          if (i === activeCommentBoxIndex) {
+            ctx.save();
+            ctx.strokeStyle = '#007AFF';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            ctx.strokeRect(a.startX - 3, a.startY - 3, w + 6, h + 6);
+            ctx.setLineDash([]);
+            ctx.restore();
+          }
+        }
       }
     }
   }

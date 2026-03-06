@@ -70,12 +70,28 @@
           <button class="anno-btn" data-tool="number" title="Number Badge">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><text x="12" y="16" text-anchor="middle" font-size="12" fill="currentColor">#</text></svg>
           </button>
+          <div class="anno-sep"></div>
+          <button class="anno-btn anno-btn-wide" data-tool="commentbox" title="Comment Box" id="btn-commentbox">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span>Comment</span>
+          </button>
+        </div>
+
+        <!-- Comment Box Picker -->
+        <div class="commentbox-picker hidden" id="commentbox-picker">
+          <div class="commentbox-picker-header">
+            <span class="commentbox-picker-title">Choose a Comment Style</span>
+            <button class="commentbox-picker-close" id="commentbox-picker-close">&times;</button>
+          </div>
+          <div class="commentbox-categories" id="commentbox-categories"></div>
+          <div class="commentbox-grid" id="commentbox-grid"></div>
         </div>
       </div>
     </section>
   </main>
 
   <script src="../lib/export-engine.js"></script>
+  <script src="comment-boxes.js"></script>
   <script src="editor.js"></script>
 </body>
 </html>

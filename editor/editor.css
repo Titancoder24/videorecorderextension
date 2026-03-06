@@ -323,3 +323,167 @@ body {
   border-color: #000;
   color: #fff;
 }
+
+.anno-btn-wide {
+  width: auto;
+  padding: 0 10px;
+  gap: 5px;
+}
+
+.anno-btn-wide span {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.anno-sep {
+  width: 1px;
+  height: 20px;
+  background: #e0e0e0;
+  margin: 0 4px;
+}
+
+/* ── Comment Box Picker ──────────────────────────────────────────────── */
+
+.commentbox-picker {
+  border-top: 1px solid #e5e5e5;
+  background: #fafafa;
+  max-height: 340px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.commentbox-picker.hidden {
+  display: none;
+}
+
+.commentbox-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.commentbox-picker-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.commentbox-picker-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #999;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.commentbox-picker-close:hover {
+  color: #000;
+  background: #eee;
+}
+
+.commentbox-categories {
+  display: flex;
+  gap: 2px;
+  padding: 8px 12px;
+  overflow-x: auto;
+  flex-shrink: 0;
+  border-bottom: 1px solid #eee;
+}
+
+.commentbox-cat-btn {
+  padding: 5px 12px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  color: #666;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.commentbox-cat-btn:hover {
+  border-color: #000;
+  color: #000;
+}
+
+.commentbox-cat-btn.active {
+  background: #000;
+  border-color: #000;
+  color: #fff;
+}
+
+.commentbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+  padding: 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.commentbox-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border: 1.5px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: #fff;
+}
+
+.commentbox-item:hover {
+  border-color: #d4d4d4;
+  background: #f5f5f5;
+}
+
+.commentbox-item.active {
+  border-color: #007AFF;
+  background: #f0f7ff;
+}
+
+.commentbox-preview-canvas {
+  border-radius: 4px;
+  display: block;
+}
+
+.commentbox-item-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: #888;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* ── Comment Box Text Input Overlay ──────────────────────────────────── */
+
+.commentbox-text-input {
+  position: absolute;
+  display: none;
+  background: transparent;
+  border: 2px solid #007AFF;
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  color: #000;
+  resize: none;
+  outline: none;
+  z-index: 10;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+}
