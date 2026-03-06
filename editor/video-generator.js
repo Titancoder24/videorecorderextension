@@ -8,47 +8,47 @@
 // ── 30 Cursor Styles ────────────────────────────────────────────────────
 
 const CURSOR_STYLES = [
-  // Classic
-  { id: 'default',       name: 'Default Arrow',     category: 'Classic',   color: '#000000', size: 20 },
-  { id: 'white-arrow',   name: 'White Arrow',       category: 'Classic',   color: '#ffffff', size: 20, stroke: '#000' },
-  { id: 'crosshair',     name: 'Crosshair',         category: 'Classic',   color: '#000000', size: 20, shape: 'crosshair' },
-  { id: 'hand',          name: 'Hand Pointer',       category: 'Classic',   color: '#000000', size: 22, shape: 'hand' },
-  { id: 'dot',           name: 'Simple Dot',         category: 'Classic',   color: '#000000', size: 12, shape: 'dot' },
+  // Classic — big, bold, visible cursors
+  { id: 'default',       name: 'Default Arrow',     category: 'Classic',   color: '#000000', size: 36 },
+  { id: 'white-arrow',   name: 'White Arrow',       category: 'Classic',   color: '#ffffff', size: 36, stroke: '#000' },
+  { id: 'crosshair',     name: 'Crosshair',         category: 'Classic',   color: '#000000', size: 32, shape: 'crosshair' },
+  { id: 'hand',          name: 'Hand Pointer',       category: 'Classic',   color: '#000000', size: 38, shape: 'hand' },
+  { id: 'dot',           name: 'Simple Dot',         category: 'Classic',   color: '#000000', size: 22, shape: 'dot' },
 
-  // Colored
-  { id: 'red-arrow',     name: 'Red Arrow',          category: 'Colored',   color: '#FF3B30', size: 20 },
-  { id: 'blue-arrow',    name: 'Blue Arrow',         category: 'Colored',   color: '#007AFF', size: 20 },
-  { id: 'green-arrow',   name: 'Green Arrow',        category: 'Colored',   color: '#34C759', size: 20 },
-  { id: 'purple-arrow',  name: 'Purple Arrow',       category: 'Colored',   color: '#AF52DE', size: 20 },
-  { id: 'orange-arrow',  name: 'Orange Arrow',       category: 'Colored',   color: '#FF9500', size: 20 },
+  // Colored — large colored arrows
+  { id: 'red-arrow',     name: 'Red Arrow',          category: 'Colored',   color: '#FF3B30', size: 36 },
+  { id: 'blue-arrow',    name: 'Blue Arrow',         category: 'Colored',   color: '#007AFF', size: 36 },
+  { id: 'green-arrow',   name: 'Green Arrow',        category: 'Colored',   color: '#34C759', size: 36 },
+  { id: 'purple-arrow',  name: 'Purple Arrow',       category: 'Colored',   color: '#AF52DE', size: 36 },
+  { id: 'orange-arrow',  name: 'Orange Arrow',       category: 'Colored',   color: '#FF9500', size: 36 },
 
-  // Circles
-  { id: 'circle-black',  name: 'Black Circle',       category: 'Circles',   color: '#000000', size: 16, shape: 'circle' },
-  { id: 'circle-red',    name: 'Red Circle',         category: 'Circles',   color: '#FF3B30', size: 16, shape: 'circle' },
-  { id: 'circle-blue',   name: 'Blue Circle',        category: 'Circles',   color: '#007AFF', size: 16, shape: 'circle' },
-  { id: 'circle-white',  name: 'White Circle',       category: 'Circles',   color: '#ffffff', size: 16, shape: 'circle', stroke: '#000' },
-  { id: 'circle-glow',   name: 'Glow Circle',        category: 'Circles',   color: '#007AFF', size: 18, shape: 'circle', glow: true },
+  // Circles — prominent filled circles
+  { id: 'circle-black',  name: 'Black Circle',       category: 'Circles',   color: '#000000', size: 28, shape: 'circle' },
+  { id: 'circle-red',    name: 'Red Circle',         category: 'Circles',   color: '#FF3B30', size: 28, shape: 'circle' },
+  { id: 'circle-blue',   name: 'Blue Circle',        category: 'Circles',   color: '#007AFF', size: 28, shape: 'circle' },
+  { id: 'circle-white',  name: 'White Circle',       category: 'Circles',   color: '#ffffff', size: 28, shape: 'circle', stroke: '#000' },
+  { id: 'circle-glow',   name: 'Glow Circle',        category: 'Circles',   color: '#007AFF', size: 32, shape: 'circle', glow: true },
 
-  // Rings
-  { id: 'ring-black',    name: 'Black Ring',         category: 'Rings',     color: '#000000', size: 20, shape: 'ring' },
-  { id: 'ring-red',      name: 'Red Ring',           category: 'Rings',     color: '#FF3B30', size: 20, shape: 'ring' },
-  { id: 'ring-blue',     name: 'Blue Ring',          category: 'Rings',     color: '#007AFF', size: 20, shape: 'ring' },
-  { id: 'ring-white',    name: 'White Ring',         category: 'Rings',     color: '#ffffff', size: 20, shape: 'ring', stroke: '#000' },
-  { id: 'ring-pulse',    name: 'Pulse Ring',         category: 'Rings',     color: '#FF3B30', size: 22, shape: 'ring', pulse: true },
+  // Rings — large outline rings
+  { id: 'ring-black',    name: 'Black Ring',         category: 'Rings',     color: '#000000', size: 34, shape: 'ring' },
+  { id: 'ring-red',      name: 'Red Ring',           category: 'Rings',     color: '#FF3B30', size: 34, shape: 'ring' },
+  { id: 'ring-blue',     name: 'Blue Ring',          category: 'Rings',     color: '#007AFF', size: 34, shape: 'ring' },
+  { id: 'ring-white',    name: 'White Ring',         category: 'Rings',     color: '#ffffff', size: 34, shape: 'ring', stroke: '#000' },
+  { id: 'ring-pulse',    name: 'Pulse Ring',         category: 'Rings',     color: '#FF3B30', size: 38, shape: 'ring', pulse: true },
 
-  // Figma-style
-  { id: 'figma-black',   name: 'Figma Black',        category: 'Figma',     color: '#000000', size: 20, shape: 'figma' },
-  { id: 'figma-blue',    name: 'Figma Blue',         category: 'Figma',     color: '#007AFF', size: 20, shape: 'figma' },
-  { id: 'figma-red',     name: 'Figma Red',          category: 'Figma',     color: '#FF3B30', size: 20, shape: 'figma' },
-  { id: 'figma-green',   name: 'Figma Green',        category: 'Figma',     color: '#34C759', size: 20, shape: 'figma' },
-  { id: 'figma-white',   name: 'Figma White',        category: 'Figma',     color: '#ffffff', size: 20, shape: 'figma', stroke: '#000' },
+  // Figma-style — BIG like real Figma collaborative cursors
+  { id: 'figma-black',   name: 'Figma Black',        category: 'Figma',     color: '#000000', size: 48, shape: 'figma' },
+  { id: 'figma-blue',    name: 'Figma Blue',         category: 'Figma',     color: '#007AFF', size: 48, shape: 'figma' },
+  { id: 'figma-red',     name: 'Figma Red',          category: 'Figma',     color: '#FF3B30', size: 48, shape: 'figma' },
+  { id: 'figma-green',   name: 'Figma Green',        category: 'Figma',     color: '#34C759', size: 48, shape: 'figma' },
+  { id: 'figma-white',   name: 'Figma White',        category: 'Figma',     color: '#ffffff', size: 48, shape: 'figma', stroke: '#000' },
 
-  // Special
-  { id: 'spotlight',     name: 'Spotlight',           category: 'Special',   color: '#000000', size: 40, shape: 'spotlight' },
-  { id: 'target',        name: 'Target',              category: 'Special',   color: '#FF3B30', size: 24, shape: 'target' },
-  { id: 'diamond',       name: 'Diamond',             category: 'Special',   color: '#FF9500', size: 16, shape: 'diamond' },
-  { id: 'trail-dots',    name: 'Trail Dots',          category: 'Special',   color: '#007AFF', size: 8,  shape: 'dot', trail: true },
-  { id: 'neon-glow',     name: 'Neon Glow',           category: 'Special',   color: '#00FF88', size: 14, shape: 'circle', glow: true, neon: true },
+  // Special — dramatic, attention-grabbing
+  { id: 'spotlight',     name: 'Spotlight',           category: 'Special',   color: '#000000', size: 72, shape: 'spotlight' },
+  { id: 'target',        name: 'Target',              category: 'Special',   color: '#FF3B30', size: 42, shape: 'target' },
+  { id: 'diamond',       name: 'Diamond',             category: 'Special',   color: '#FF9500', size: 28, shape: 'diamond' },
+  { id: 'trail-dots',    name: 'Trail Dots',          category: 'Special',   color: '#007AFF', size: 16, shape: 'dot', trail: true },
+  { id: 'neon-glow',     name: 'Neon Glow',           category: 'Special',   color: '#00FF88', size: 26, shape: 'circle', glow: true, neon: true },
 ];
 
 function getCursorCategories() {
@@ -103,13 +103,19 @@ function drawCursor(ctx, style, x, y, opts = {}) {
       break;
     case 'ring':
       ctx.strokeStyle = style.color;
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.arc(x, y, s / 2, 0, Math.PI * 2);
       ctx.stroke();
+      // Inner dot
+      ctx.fillStyle = style.color;
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
       if (style.pulse && opts.t !== undefined) {
-        const pulseR = s / 2 + (opts.t % 1) * 15;
+        const pulseR = s / 2 + (opts.t % 1) * 25;
         ctx.globalAlpha = 1 - (opts.t % 1);
+        ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.arc(x, y, pulseR, 0, Math.PI * 2);
         ctx.stroke();
@@ -118,14 +124,20 @@ function drawCursor(ctx, style, x, y, opts = {}) {
       break;
     case 'crosshair':
       ctx.strokeStyle = style.color;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.moveTo(x - s, y); ctx.lineTo(x + s, y);
       ctx.moveTo(x, y - s); ctx.lineTo(x, y + s);
       ctx.stroke();
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(x, y, s * 0.4, 0, Math.PI * 2);
+      ctx.arc(x, y, s * 0.45, 0, Math.PI * 2);
       ctx.stroke();
+      // Center dot
+      ctx.fillStyle = style.color;
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
       break;
     case 'hand':
       drawArrowCursor(ctx, x, y, s, style.color, style.stroke);
@@ -141,11 +153,14 @@ function drawCursor(ctx, style, x, y, opts = {}) {
       break;
     case 'target':
       ctx.strokeStyle = style.color;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       ctx.beginPath(); ctx.arc(x, y, s / 2, 0, Math.PI * 2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(x, y, s / 4, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(x, y, s / 3, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, s / 6, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = style.color;
-      ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
       break;
     case 'diamond':
       ctx.fillStyle = style.color;
@@ -163,7 +178,7 @@ function drawCursor(ctx, style, x, y, opts = {}) {
 }
 
 function drawArrowCursor(ctx, x, y, s, color, stroke) {
-  ctx.fillStyle = color;
+  ctx.lineJoin = 'round';
   ctx.beginPath();
   ctx.moveTo(x, y);
   ctx.lineTo(x, y + s);
@@ -173,16 +188,22 @@ function drawArrowCursor(ctx, x, y, s, color, stroke) {
   ctx.lineTo(x + s * 0.5, y + s * 0.6);
   ctx.lineTo(x + s * 0.85, y + s * 0.55);
   ctx.closePath();
+
+  // Draw thick white outline first for contrast, then fill
+  ctx.strokeStyle = stroke || (color === '#000000' ? '#fff' : '#000');
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.fillStyle = color;
   ctx.fill();
-  if (stroke) {
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-  }
 }
 
 function drawFigmaCursor(ctx, x, y, s, color, stroke) {
+  // Main cursor pointer — Figma-style with thick outline
   ctx.fillStyle = color;
+  ctx.strokeStyle = stroke || (color === '#ffffff' ? '#000' : '#fff');
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+
   ctx.beginPath();
   ctx.moveTo(x, y);
   ctx.lineTo(x, y + s * 1.1);
@@ -192,12 +213,41 @@ function drawFigmaCursor(ctx, x, y, s, color, stroke) {
   ctx.lineTo(x + s * 0.45, y + s * 0.72);
   ctx.lineTo(x + s * 0.82, y + s * 0.72);
   ctx.closePath();
+  ctx.stroke();
   ctx.fill();
-  if (stroke) {
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-  }
+
+  // Figma-style name tag below cursor
+  const tagX = x + s * 0.15;
+  const tagY = y + s * 1.25;
+  const tagText = 'You';
+  ctx.font = `bold ${Math.round(s * 0.28)}px -apple-system, sans-serif`;
+  const textW = ctx.measureText(tagText).width;
+  const tagPadX = s * 0.15;
+  const tagPadY = s * 0.08;
+  const tagH = s * 0.35;
+  const tagW = textW + tagPadX * 2;
+
+  // Tag background (same color as cursor)
+  ctx.fillStyle = color === '#ffffff' ? '#000' : color;
+  const tagR = s * 0.08;
+  ctx.beginPath();
+  ctx.moveTo(tagX + tagR, tagY);
+  ctx.lineTo(tagX + tagW - tagR, tagY);
+  ctx.quadraticCurveTo(tagX + tagW, tagY, tagX + tagW, tagY + tagR);
+  ctx.lineTo(tagX + tagW, tagY + tagH - tagR);
+  ctx.quadraticCurveTo(tagX + tagW, tagY + tagH, tagX + tagW - tagR, tagY + tagH);
+  ctx.lineTo(tagX + tagR, tagY + tagH);
+  ctx.quadraticCurveTo(tagX, tagY + tagH, tagX, tagY + tagH - tagR);
+  ctx.lineTo(tagX, tagY + tagR);
+  ctx.quadraticCurveTo(tagX, tagY, tagX + tagR, tagY);
+  ctx.closePath();
+  ctx.fill();
+
+  // Tag text
+  ctx.fillStyle = color === '#ffffff' ? '#fff' : '#fff';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(tagText, tagX + tagPadX, tagY + tagH / 2);
 }
 
 // ── Draw cursor preview thumbnail ───────────────────────────────────────
@@ -205,7 +255,9 @@ function drawFigmaCursor(ctx, x, y, s, color, stroke) {
 function drawCursorPreview(canvas, style) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawCursor(ctx, style, canvas.width * 0.35, canvas.height * 0.25, { t: 0 });
+  // Scale down for preview — draw at canvas center, reduced size for thumbnail
+  const previewStyle = { ...style, size: Math.min(style.size, 28) };
+  drawCursor(ctx, previewStyle, canvas.width * 0.3, canvas.height * 0.2, { t: 0 });
 }
 
 // ── Easing Functions ────────────────────────────────────────────────────

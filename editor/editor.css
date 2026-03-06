@@ -166,6 +166,15 @@ body {
   text-overflow: ellipsis;
 }
 
+.step-item-desc {
+  font-size: 10px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-style: italic;
+}
+
 .step-item-url {
   font-size: 10px;
   color: #aaa;
@@ -612,10 +621,11 @@ body {
 
 .cursor-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  gap: 6px;
-  max-height: 180px;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+  max-height: 220px;
   overflow-y: auto;
+  padding: 4px;
 }
 
 .cursor-item {

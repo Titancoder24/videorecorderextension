@@ -143,6 +143,7 @@
         <span class="step-item-number">${i + 1}</span>
         <div class="step-item-info">
           <span class="step-item-title">${escapeHtml(step.title || `Step ${i + 1}`)}</span>
+          ${step.description ? `<span class="step-item-desc">${escapeHtml(step.description)}</span>` : ''}
           <span class="step-item-url">${escapeHtml(truncateUrl(step.url))}</span>
         </div>
         ${(step.croppedScreenshot || step.screenshot) ? `<img class="step-item-thumb" src="${step.croppedScreenshot || step.screenshot}" />` : ''}
@@ -638,8 +639,8 @@
       item.title = cursor.name;
 
       const canvas = document.createElement('canvas');
-      canvas.width = 60;
-      canvas.height = 50;
+      canvas.width = 80;
+      canvas.height = 60;
       canvas.className = 'cursor-preview-canvas';
       drawCursorPreview(canvas, cursor);
 

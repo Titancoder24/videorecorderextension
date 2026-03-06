@@ -253,6 +253,7 @@
         <span class="sp-live-step-num">${i + 1}</span>
         <div class="sp-live-step-body">
           <div class="sp-live-step-title">${escapeHtml(step.title || `Step ${i + 1}`)}</div>
+          ${step.description ? `<div class="sp-live-step-desc">${escapeHtml(step.description)}</div>` : ''}
           ${step.croppedScreenshot ? `<img class="sp-live-step-thumb" src="${step.croppedScreenshot}" alt="Step ${i + 1}" />` : ''}
         </div>
         <button class="sp-live-step-delete" data-index="${i}" title="Delete step">&times;</button>

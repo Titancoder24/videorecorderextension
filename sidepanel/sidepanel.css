@@ -534,6 +534,19 @@ body {
   line-height: 1.3;
 }
 
+.sp-live-step-desc {
+  font-size: 11px;
+  color: #666;
+  line-height: 1.4;
+  margin-bottom: 4px;
+  max-height: 32px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
 .sp-live-step-thumb {
   width: 100%;
   border-radius: 6px;

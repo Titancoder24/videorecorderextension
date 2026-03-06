@@ -29,6 +29,7 @@
   let stepBadges = []; // DOM elements for on-page badges
   let hoverHighlight = null; // element highlight on hover
   let highlightColor = '#FF2D55'; // user-selected highlight color
+  let isCapturingStep = false; // lock to prevent double-capture while comment input is open
 
   // Recording state
   let mediaRecorder = null;
@@ -245,7 +246,9 @@
     guideClickHandler = async (e) => {
       if (paused) return;
       if (isClarityElement(e.target)) return;
+      if (isCapturingStep) return; // prevent double-capture while comment input is showing
 
+      isCapturingStep = true;
       try {
         const target = getInteractableElement(e.target);
         const rect = target.getBoundingClientRect();
@@ -322,6 +325,8 @@
         showStepCountToast(stepCount);
       } catch (err) {
         console.error('[Clarity] Step capture error:', err);
+      } finally {
+        isCapturingStep = false;
       }
     };
 
@@ -667,6 +672,11 @@
       `;
 
       document.body.appendChild(wrap);
+
+      // Stop ALL click events inside the comment input from bubbling/capturing
+      wrap.addEventListener('click', (ev) => { ev.stopPropagation(); ev.stopImmediatePropagation(); }, true);
+      wrap.addEventListener('mousedown', (ev) => { ev.stopPropagation(); ev.stopImmediatePropagation(); }, true);
+      wrap.addEventListener('mouseup', (ev) => { ev.stopPropagation(); ev.stopImmediatePropagation(); }, true);
 
       const textarea = document.getElementById('clarity-comment-textarea');
       const saveBtn = document.getElementById('clarity-comment-save');
