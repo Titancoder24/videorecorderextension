@@ -51,26 +51,28 @@
 
   // ── Cursor Definitions (30 styles) ─────────────────────────────────────
   // Each cursor has: name, svg (40x40 viewBox), hotX, hotY offset from top-left
+  // Arrow path: clean triangle, NO tail/notch — just a solid pointer shape
+  const ARROW_PATH = 'M8 4L8 34 18 26 24 36 28 34 22 24 32 22Z';
   const CURSOR_DEFS = {
-    // === ARROWS ===
+    // === ARROWS (clean triangle, no tail) ===
     'default':      { name: 'Default',       category: 'Arrows', svg: null },
-    'bold-arrow':   { name: 'Bold Arrow',    category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M6 3L34 20 22 22.5 16 35Z" fill="#333" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>', hotX: 6, hotY: 3 },
-    'dark-arrow':   { name: 'Dark Arrow',    category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M8 4L32 19 21 21.5 15 33Z" fill="#111" stroke="#fff" stroke-width="3" stroke-linejoin="round"/></svg>', hotX: 8, hotY: 4 },
-    'white-arrow':  { name: 'White Arrow',   category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M8 4L32 19 21 21.5 15 33Z" fill="#fff" stroke="#222" stroke-width="2.5" stroke-linejoin="round"/></svg>', hotX: 8, hotY: 4 },
-    'neon-arrow':   { name: 'Neon Arrow',    category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><defs><filter id="ng"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="M8 4L32 19 21 21.5 15 33Z" fill="#0ff" stroke="#fff" stroke-width="2" stroke-linejoin="round" filter="url(#ng)"/></svg>', hotX: 8, hotY: 4 },
-    'red-arrow':    { name: 'Red Arrow',     category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M8 4L32 19 21 21.5 15 33Z" fill="#FF2D55" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>', hotX: 8, hotY: 4 },
-    'blue-arrow':   { name: 'Blue Arrow',    category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M8 4L32 19 21 21.5 15 33Z" fill="#007AFF" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>', hotX: 8, hotY: 4 },
-    'green-arrow':  { name: 'Green Arrow',   category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M8 4L32 19 21 21.5 15 33Z" fill="#34C759" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>', hotX: 8, hotY: 4 },
-    'orange-arrow': { name: 'Orange Arrow',  category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M8 4L32 19 21 21.5 15 33Z" fill="#FF9500" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>', hotX: 8, hotY: 4 },
-    'purple-arrow': { name: 'Purple Arrow',  category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M8 4L32 19 21 21.5 15 33Z" fill="#AF52DE" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>', hotX: 8, hotY: 4 },
-    'outline-arrow':{ name: 'Outline Arrow', category: 'Arrows', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M8 4L32 19 21 21.5 15 33Z" fill="none" stroke="#333" stroke-width="3" stroke-linejoin="round"/></svg>', hotX: 8, hotY: 4 },
+    'bold-arrow':   { name: 'Bold Arrow',    category: 'Arrows', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="${ARROW_PATH}" fill="#333" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>`, hotX: 8, hotY: 4 },
+    'dark-arrow':   { name: 'Dark Arrow',    category: 'Arrows', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="${ARROW_PATH}" fill="#111" stroke="#fff" stroke-width="3" stroke-linejoin="round"/></svg>`, hotX: 8, hotY: 4 },
+    'white-arrow':  { name: 'White Arrow',   category: 'Arrows', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="${ARROW_PATH}" fill="#fff" stroke="#222" stroke-width="2.5" stroke-linejoin="round"/></svg>`, hotX: 8, hotY: 4 },
+    'neon-arrow':   { name: 'Neon Arrow',    category: 'Arrows', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><defs><filter id="clarity-f-neon"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><path d="${ARROW_PATH}" fill="#0ff" stroke="#fff" stroke-width="2" stroke-linejoin="round" filter="url(#clarity-f-neon)"/></svg>`, hotX: 8, hotY: 4 },
+    'red-arrow':    { name: 'Red Arrow',     category: 'Arrows', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="${ARROW_PATH}" fill="#FF2D55" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>`, hotX: 8, hotY: 4 },
+    'blue-arrow':   { name: 'Blue Arrow',    category: 'Arrows', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="${ARROW_PATH}" fill="#007AFF" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>`, hotX: 8, hotY: 4 },
+    'green-arrow':  { name: 'Green Arrow',   category: 'Arrows', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="${ARROW_PATH}" fill="#34C759" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>`, hotX: 8, hotY: 4 },
+    'orange-arrow': { name: 'Orange Arrow',  category: 'Arrows', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="${ARROW_PATH}" fill="#FF9500" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>`, hotX: 8, hotY: 4 },
+    'purple-arrow': { name: 'Purple Arrow',  category: 'Arrows', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="${ARROW_PATH}" fill="#AF52DE" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/></svg>`, hotX: 8, hotY: 4 },
+    'outline-arrow':{ name: 'Outline Arrow', category: 'Arrows', svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="${ARROW_PATH}" fill="none" stroke="#333" stroke-width="3" stroke-linejoin="round"/></svg>`, hotX: 8, hotY: 4 },
 
     // === DOTS ===
     'dot-black':    { name: 'Black Dot',     category: 'Dots', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="10" fill="#111" stroke="#fff" stroke-width="3"/></svg>', hotX: 20, hotY: 20 },
     'dot-white':    { name: 'White Dot',     category: 'Dots', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="10" fill="#fff" stroke="#222" stroke-width="3"/></svg>', hotX: 20, hotY: 20 },
     'dot-red':      { name: 'Red Dot',       category: 'Dots', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="10" fill="#FF2D55" stroke="#fff" stroke-width="3"/></svg>', hotX: 20, hotY: 20 },
     'dot-blue':     { name: 'Blue Dot',      category: 'Dots', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="10" fill="#007AFF" stroke="#fff" stroke-width="3"/></svg>', hotX: 20, hotY: 20 },
-    'dot-glow':     { name: 'Glow Dot',      category: 'Dots', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><defs><filter id="dg"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><circle cx="20" cy="20" r="7" fill="#FF2D55" filter="url(#dg)"/></svg>', hotX: 20, hotY: 20 },
+    'dot-glow':     { name: 'Glow Dot',      category: 'Dots', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><defs><filter id="clarity-f-dotglow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><circle cx="20" cy="20" r="7" fill="#FF2D55" filter="url(#clarity-f-dotglow)"/></svg>', hotX: 20, hotY: 20 },
     'dot-ring':     { name: 'Ring Dot',      category: 'Dots', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="12" fill="none" stroke="#333" stroke-width="3"/><circle cx="20" cy="20" r="4" fill="#333"/></svg>', hotX: 20, hotY: 20 },
     'dot-target':   { name: 'Target',        category: 'Dots', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="none" stroke="#FF2D55" stroke-width="2"/><circle cx="20" cy="20" r="8" fill="none" stroke="#FF2D55" stroke-width="2"/><circle cx="20" cy="20" r="3" fill="#FF2D55"/></svg>', hotX: 20, hotY: 20 },
     'dot-crosshair':{ name: 'Crosshair',     category: 'Dots', svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><line x1="20" y1="4" x2="20" y2="16" stroke="#333" stroke-width="2.5" stroke-linecap="round"/><line x1="20" y1="24" x2="20" y2="36" stroke="#333" stroke-width="2.5" stroke-linecap="round"/><line x1="4" y1="20" x2="16" y2="20" stroke="#333" stroke-width="2.5" stroke-linecap="round"/><line x1="24" y1="20" x2="36" y2="20" stroke="#333" stroke-width="2.5" stroke-linecap="round"/><circle cx="20" cy="20" r="3" fill="#FF2D55"/></svg>', hotX: 20, hotY: 20 },
@@ -391,6 +393,10 @@
           showStepCountToast(stepCount, true); // show error toast
         } else {
           console.log('[Clarity] Step saved successfully, total:', addRes.stepCount);
+          // Show saved comment overlay on the page if comment exists
+          if (comment) {
+            showCommentOverlay(rect, stepCount, comment);
+          }
           // Show toast
           showStepCountToast(stepCount);
         }
@@ -534,12 +540,32 @@
     return badge;
   }
 
+  function showCommentOverlay(rect, number, text) {
+    const overlay = document.createElement('div');
+    overlay.className = 'clarity-comment-overlay';
+    // Position below the element highlight
+    const left = rect.left + window.scrollX;
+    const top = rect.top + window.scrollY + rect.height + 8;
+    overlay.style.left = left + 'px';
+    overlay.style.top = top + 'px';
+    overlay.innerHTML = `
+      <span class="clarity-comment-overlay-badge">${number}</span>
+      <span class="clarity-comment-overlay-text">${text.length > 60 ? text.slice(0, 60) + '...' : text}</span>
+    `;
+    document.body.appendChild(overlay);
+    // Store reference for cleanup
+    if (stepBadges.length > 0) {
+      stepBadges[stepBadges.length - 1].commentOverlay = overlay;
+    }
+  }
+
   function removeLastBadge() {
     const last = stepBadges.pop();
     if (last) {
       last.badge._connector?.remove();
       last.badge.remove();
       last.highlight.remove();
+      last.commentOverlay?.remove();
     }
   }
 
@@ -548,6 +574,7 @@
       b.badge._connector?.remove();
       b.badge.remove();
       b.highlight.remove();
+      b.commentOverlay?.remove();
     }
     stepBadges = [];
   }
@@ -1055,18 +1082,86 @@
   }
 
   function updateCursorEffect(x, y) {
-    // Legacy — noop, cursor effects are now visual follower
+    if (!cursorOverlay) return;
+
+    // Glow — persistent glow under cursor
+    if (cursorStyle === 'dot-glow' || cursorStyle === 'neon-arrow') {
+      let glow = cursorOverlay.querySelector('.clarity-cursor-glow');
+      if (!glow) { glow = document.createElement('div'); glow.className = 'clarity-cursor-glow'; cursorOverlay.appendChild(glow); }
+      glow.style.left = x + 'px';
+      glow.style.top = y + 'px';
+    } else {
+      const oldGlow = cursorOverlay.querySelector('.clarity-cursor-glow');
+      if (oldGlow) oldGlow.remove();
+    }
+
+    // Spotlight — large soft light under cursor
+    if (cursorStyle === 'dot-target' || cursorStyle === 'dot-crosshair') {
+      let spot = cursorOverlay.querySelector('.clarity-cursor-spotlight');
+      if (!spot) { spot = document.createElement('div'); spot.className = 'clarity-cursor-spotlight'; cursorOverlay.appendChild(spot); }
+      spot.style.left = x + 'px';
+      spot.style.top = y + 'px';
+    } else {
+      const oldSpot = cursorOverlay.querySelector('.clarity-cursor-spotlight');
+      if (oldSpot) oldSpot.remove();
+    }
+
+    // Trail — dots that fade behind cursor for sparkle/glitter cursors
+    if (cursorStyle.startsWith('sparkle') || cursorStyle === 'glitter' || cursorStyle === 'circle-pulse') {
+      const dot = document.createElement('div');
+      dot.className = 'clarity-cursor-trail-dot';
+      dot.style.left = x + 'px';
+      dot.style.top = y + 'px';
+      if (cursorStyle === 'glitter') {
+        const colors = ['#FFD700', '#FFF', '#FFE082', '#FFAB00'];
+        dot.style.background = colors[Math.floor(Math.random() * colors.length)];
+      }
+      cursorOverlay.appendChild(dot);
+      setTimeout(() => { dot.style.opacity = '0'; setTimeout(() => dot.remove(), 400); }, 150);
+    }
   }
 
   function triggerClickAnimation(x, y) {
     if (!cursorOverlay) return;
-    // Always show a ripple on click regardless of cursor style
+
+    // Ripple — expanding ring on every click
     const ripple = document.createElement('div');
     ripple.className = 'clarity-cursor-ripple';
     ripple.style.left = x + 'px';
     ripple.style.top = y + 'px';
     cursorOverlay.appendChild(ripple);
     setTimeout(() => ripple.remove(), 600);
+
+    // Pulse — second expanding circle for dot cursors
+    if (cursorStyle.startsWith('dot-') || cursorStyle === 'circle-pulse') {
+      const pulse = document.createElement('div');
+      pulse.className = 'clarity-cursor-pulse';
+      pulse.style.left = x + 'px';
+      pulse.style.top = y + 'px';
+      cursorOverlay.appendChild(pulse);
+      setTimeout(() => pulse.remove(), 400);
+    }
+
+    // Particle burst — for sparkle/glitter cursors
+    if (cursorStyle.startsWith('sparkle') || cursorStyle === 'glitter' || cursorStyle === 'star-gold' || cursorStyle === 'diamond') {
+      const colors = cursorStyle === 'glitter'
+        ? ['#FFD700', '#FFF', '#FFE082', '#FFAB00']
+        : ['#FF2D55', '#FFD700', '#007AFF', '#fff', '#34C759'];
+      for (let i = 0; i < 10; i++) {
+        const angle = (Math.PI * 2 * i) / 10;
+        const dist = 20 + Math.random() * 20;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist;
+        const p = document.createElement('div');
+        p.className = 'clarity-cursor-particle';
+        p.style.left = x + 'px';
+        p.style.top = y + 'px';
+        p.style.background = colors[Math.floor(Math.random() * colors.length)];
+        cursorOverlay.appendChild(p);
+        requestAnimationFrame(() => { p.style.left = (x + dx) + 'px'; p.style.top = (y + dy) + 'px'; p.style.opacity = '0'; });
+        setTimeout(() => p.remove(), 500);
+      }
+    }
   }
 
   // ── Cursor Style Menu (Grid Picker) ────────────────────────────────────

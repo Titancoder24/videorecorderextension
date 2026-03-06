@@ -240,6 +240,50 @@
   to { opacity: 1; }
 }
 
+/* ── Comment Overlay (shows saved comment on page) ───────────────────── */
+
+.clarity-comment-overlay {
+  position: absolute;
+  z-index: 2147483641;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 280px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.82);
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+  border-radius: 8px;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  animation: clarity-comment-overlay-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.clarity-comment-overlay-badge {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--clarity-highlight-color, #FF2D55);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.clarity-comment-overlay-text {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+@keyframes clarity-comment-overlay-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.9); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    AUTO-ZOOM B-ROLL — Ring effect during zoom
    ══════════════════════════════════════════════════════════════════════════ */
@@ -362,7 +406,7 @@ html.clarity-custom-cursor * {
   display: block;
 }
 
-/* ── Cursor Click Ripple ────────────────────────────────────────────── */
+/* ── Cursor Effects ─────────────────────────────────────────────────── */
 
 .clarity-cursor-ripple {
   position: absolute;
@@ -379,9 +423,61 @@ html.clarity-custom-cursor * {
   100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
 }
 
+.clarity-cursor-pulse {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  animation: clarity-pulse-click 0.4s ease-out forwards;
+}
+
 @keyframes clarity-pulse-click {
   from { transform: translate(-50%, -50%) scale(1); opacity: 0.4; }
   to { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
+}
+
+.clarity-cursor-glow {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,122,255,0.35) 0%, transparent 70%);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.clarity-cursor-spotlight {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.clarity-cursor-trail-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 215, 0, 0.7);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.4s ease;
+}
+
+.clarity-cursor-particle {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition: all 0.5s ease-out;
+  opacity: 1;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
